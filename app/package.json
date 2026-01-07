@@ -1,0 +1,35 @@
+{
+  "name": "example-bare",
+  "type": "module",
+  "scripts": {
+    "prepare": "panda codegen",
+    "dev": "pnpm prepare && vinxi dev",
+    "build": "vinxi build",
+    "start": "vinxi start"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^1.0.0",
+    "@ark-ui/solid": "^5.30.0",
+    "@solidjs/meta": "^0.29.4",
+    "@solidjs/router": "^0.15.1",
+    "@solidjs/start": "^1.1.0",
+    "ai": "^4.0.0",
+    "lucide-solid": "^0.562.0",
+    "solid-js": "^1.9.5",
+    "vinxi": "^0.5.7",
+    "zod": "^3.23.8"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@pandacss/dev": "^1.7.2",
+    "vite-plugin-lucide-preprocess": "^1.4.6",
+    "vite-tsconfig-paths": "^6.0.3"
+  },
+  "pnpm": {
+    "patchedDependencies": {
+      "vinxi@0.5.10": "patches/vinxi@0.5.10.patch"
+    }
+  }
+}
