@@ -10,6 +10,7 @@ import { Button } from "~/components/ui/button";
 import * as Card from "~/components/ui/card";
 import * as Checkbox from "~/components/ui/checkbox";
 import { Heading } from "~/components/ui/heading";
+import * as Tabs from "~/components/ui/tabs";
 import { Text } from "~/components/ui/text";
 import { Textarea } from "~/components/ui/textarea";
 
@@ -199,131 +200,147 @@ export default function HomeRoute() {
                     </Text>
                   </Box>
 
-                  <For each={session().rounds}>
-                    {(round, index) => (
-                      <Card.Root
-                        class={css({
-                          opacity:
-                            index() === session().rounds.length - 1 ? 1 : 0.6,
-                        })}
-                      >
-                        <Card.Header>
-                          <Heading as="h2" class={css({ fontSize: "xl" })}>
+                  <Tabs.Root
+                    defaultValue={`round-${session().rounds.length - 1}`}
+                  >
+                    <Tabs.List>
+                      <For each={session().rounds}>
+                        {(round, index) => (
+                          <Tabs.Trigger value={`round-${index()}`}>
                             Round {index() + 1}
-                          </Heading>
-                        </Card.Header>
-                        <Card.Body>
-                          <Stack gap="8">
-                            <For each={round.questions}>
-                              {(question) => {
-                                const answer = () =>
-                                  index() === session().rounds.length - 1
-                                    ? answers.find(
-                                        (a) => a.questionId === question.id
-                                      )
-                                    : round.answers.find(
-                                        (a) => a.questionId === question.id
-                                      );
+                          </Tabs.Trigger>
+                        )}
+                      </For>
+                      <Tabs.Indicator />
+                    </Tabs.List>
 
-                                return (
-                                  <Stack gap="4">
-                                    <Text fontWeight="bold">
-                                      {question.text}
-                                    </Text>
-                                    <Stack gap="2">
-                                      <For each={question.options}>
-                                        {(option) => (
-                                          <HStack gap="3">
-                                            <Checkbox.Root
-                                              checked={answer()?.selectedOptionIds.includes(
-                                                option.id
-                                              )}
-                                              onCheckedChange={() => {
-                                                if (
-                                                  index() ===
-                                                  session().rounds.length - 1
-                                                ) {
-                                                  handleToggleOption(
-                                                    question.id,
+                    <For each={session().rounds}>
+                      {(round, index) => (
+                        <Tabs.Content value={`round-${index()}`}>
+                          <Card.Root>
+                            <Card.Body>
+                              <Stack gap="8">
+                                <For each={round.questions}>
+                                  {(question) => {
+                                    const answer = () => {
+                                      if (round.answers && round.answers.length > 0) {
+                                        return round.answers.find(
+                                          (a) => a.questionId === question.id
+                                        );
+                                      }
+
+                                      if (index() === session().rounds.length - 1) {
+                                        return answers.find(
+                                          (a) => a.questionId === question.id
+                                        );
+                                      }
+
+                                      return undefined;
+                                    };
+
+                                    return (
+                                      <Stack gap="4">
+                                        <Text fontWeight="bold">
+                                          {question.text}
+                                        </Text>
+                                        <Stack gap="2">
+                                          <For each={question.options}>
+                                            {(option) => (
+                                              <HStack gap="3">
+                                                <Checkbox.Root
+                                                  checked={answer()?.selectedOptionIds.includes(
                                                     option.id
-                                                  );
-                                                }
-                                              }}
-                                              disabled={
-                                                index() <
-                                                session().rounds.length - 1
-                                              }
-                                            >
-                                              <Checkbox.Control />
-                                              <Checkbox.Label>
-                                                {option.text}
-                                              </Checkbox.Label>
-                                              <Checkbox.HiddenInput />
-                                            </Checkbox.Root>
-                                          </HStack>
-                                        )}
-                                      </For>
-                                    </Stack>
-                                  </Stack>
-                                );
-                              }}
-                            </For>
+                                                  )}
+                                                  onCheckedChange={() => {
+                                                    if (
+                                                      index() ===
+                                                      session().rounds.length - 1
+                                                    ) {
+                                                      handleToggleOption(
+                                                        question.id,
+                                                        option.id
+                                                      );
+                                                    }
+                                                  }}
+                                                  disabled={
+                                                    index() <
+                                                    session().rounds.length - 1
+                                                  }
+                                                >
+                                                  <Checkbox.Control />
+                                                  <Checkbox.Label>
+                                                    {option.text}
+                                                  </Checkbox.Label>
+                                                  <Checkbox.HiddenInput />
+                                                </Checkbox.Root>
+                                              </HStack>
+                                            )}
+                                          </For>
+                                        </Stack>
+                                      </Stack>
+                                    );
+                                  }}
+                                </For>
 
-                            <Show when={round.result}>
-                              <Box
-                                p="6"
-                                bg="bg.subtle"
-                                borderRadius="md"
-                                border="1px solid"
-                                borderColor="border.default"
-                              >
-                                <Heading
-                                  as="h3"
-                                  class={css({ fontSize: "lg", mb: "4" })}
-                                >
-                                  Analysis & Recommendations
-                                </Heading>
+                                <Show when={round.result}>
+                                  <Box
+                                    p="6"
+                                    bg="bg.subtle"
+                                    borderRadius="md"
+                                    border="1px solid"
+                                    borderColor="border.default"
+                                  >
+                                    <Heading
+                                      as="h3"
+                                      class={css({ fontSize: "lg", mb: "4" })}
+                                    >
+                                      Analysis & Recommendations
+                                    </Heading>
 
-                                <MarkdownRenderer>
-                                  {round.result}
-                                </MarkdownRenderer>
+                                    <MarkdownRenderer>
+                                      {round.result}
+                                    </MarkdownRenderer>
+
+                                    <Show
+                                      when={
+                                        index() === session().rounds.length - 1
+                                      }
+                                    >
+                                      <Button
+                                        mt="6"
+                                        onClick={handleCreateNextRound}
+                                        loading={isSubmitting()}
+                                      >
+                                        Refine with Another Round
+                                      </Button>
+                                    </Show>
+                                  </Box>
+                                </Show>
 
                                 <Show
-                                  when={index() === session().rounds.length - 1}
+                                  when={
+                                    !round.result &&
+                                    index() === session().rounds.length - 1
+                                  }
                                 >
                                   <Button
-                                    mt="6"
-                                    onClick={handleCreateNextRound}
+                                    size="lg"
+                                    disabled={
+                                      answers.length < round.questions.length
+                                    }
+                                    onClick={handleSubmitRound}
                                     loading={isSubmitting()}
                                   >
-                                    Refine with Another Round
+                                    Submit Answers
                                   </Button>
                                 </Show>
-                              </Box>
-                            </Show>
-
-                            <Show
-                              when={
-                                !round.result &&
-                                index() === session().rounds.length - 1
-                              }
-                            >
-                              <Button
-                                size="lg"
-                                disabled={
-                                  answers.length < round.questions.length
-                                }
-                                onClick={handleSubmitRound}
-                                loading={isSubmitting()}
-                              >
-                                Submit Answers
-                              </Button>
-                            </Show>
-                          </Stack>
-                        </Card.Body>
-                      </Card.Root>
-                    )}
-                  </For>
+                              </Stack>
+                            </Card.Body>
+                          </Card.Root>
+                        </Tabs.Content>
+                      )}
+                    </For>
+                  </Tabs.Root>
                 </Stack>
               )}
             </Show>
