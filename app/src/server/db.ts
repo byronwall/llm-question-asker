@@ -75,7 +75,7 @@ class JsonDb {
 
   async updateSession(
     sessionId: string,
-    patch: Partial<Pick<Session, "rounds">>
+    patch: Partial<Pick<Session, "rounds" | "title" | "description">>
   ): Promise<Session> {
     return this.mutateSession(sessionId, (session) => {
       Object.assign(session, patch);

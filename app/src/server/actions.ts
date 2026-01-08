@@ -1,7 +1,11 @@
 import { action, query } from "@solidjs/router";
 import type { Answer } from "~/lib/domain";
 import { db } from "./db";
-import { generateQuestions, generateResult } from "./ai";
+import {
+  generateQuestions,
+  generateResult,
+  generateTitleAndDescription,
+} from "./ai";
 
 export const createSession = action(async (prompt: string) => {
   "use server";
@@ -15,6 +19,21 @@ export const createSession = action(async (prompt: string) => {
   console.log("💾 [SERVER] Creating session in database");
   const session = await database.createSession(prompt);
   console.log("✅ [SERVER] Session created:", { sessionId: session.id });
+
+  // Generate title and description
+  try {
+    console.log("🤖 [SERVER] Generating title and description");
+    const { title, description } = await generateTitleAndDescription(prompt);
+    console.log("✅ [SERVER] Title and description generated:", {
+      title,
+      description,
+    });
+    await database.updateSession(session.id, { title, description });
+    session.title = title;
+    session.description = description;
+  } catch (err) {
+    console.error("❌ [SERVER] Failed to generate title/description:", err);
+  }
 
   // Generate initial questions in background (or await if fast enough)
   try {

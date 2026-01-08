@@ -1,6 +1,8 @@
 export interface Session {
   id: string;
   prompt: string;
+  title?: string;
+  description?: string;
   rounds: Round[];
   createdAt: string;
   updatedAt: string;

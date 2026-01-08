@@ -1,7 +1,7 @@
 import { generateObject, generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
-import type { Question, Answer } from "~/lib/domain";
+import type { Question } from "~/lib/domain";
 
 function getModel() {
   const modelId = process.env.AI_MODEL || "gpt-5.2";
@@ -87,4 +87,39 @@ export async function generateResult(
   });
 
   return text;
+}
+
+export async function generateTitleAndDescription(
+  prompt: string
+): Promise<{ title: string; description: string }> {
+  requireApiKey();
+
+  const schema = z.object({
+    title: z
+      .string()
+      .describe(
+        "A concise title for this consultation session (maximum 5 words)"
+      ),
+    description: z
+      .string()
+      .describe(
+        "A brief description of what the user wants to achieve (maximum 40 words)"
+      ),
+  });
+
+  const { object } = await generateObject({
+    model: getModel(),
+    schema,
+    prompt: [
+      "You are creating a title and description for a consultation session.",
+      "The user's request:",
+      `"${prompt}"`,
+      "",
+      "Generate a title (max 5 words) and description (max 40 words).",
+      "The title should be clear and specific.",
+      "The description should summarize the user's goal.",
+    ].join("\n"),
+  });
+
+  return object;
 }
