@@ -1,8 +1,7 @@
 import { Meta, Title } from "@solidjs/meta";
-import { useParams, useNavigate } from "@solidjs/router";
+import { useNavigate, useParams } from "@solidjs/router";
 import { createEffect } from "solid-js";
 import { Container } from "styled-system/jsx";
-import { Text } from "~/components/ui/text";
 
 import { SITE_NAME } from "~/lib/site-meta";
 
@@ -11,7 +10,7 @@ import { SessionView } from "~/components/consultation/SessionView";
 
 export default function SessionRoute() {
   const params = useParams();
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
   const sessionId = () => params.id;
 
   console.log("SessionRoute:render", {
@@ -28,7 +27,7 @@ export default function SessionRoute() {
 
   const handleSetSessionId = (id: string) => {
     console.log("SessionRoute:handleSetSessionId", id);
-    // navigate(`/session/${id}`);
+    navigate(`/session/${id}`);
   };
 
   console.log("SessionRoute:about to render", {
