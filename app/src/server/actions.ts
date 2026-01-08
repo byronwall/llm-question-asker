@@ -175,8 +175,15 @@ export const createNextRound = action(async (sessionId: string) => {
 
 export const getSession = query(async (sessionId: string) => {
   "use server";
+  console.log("🔍 [SERVER] getSession called", { sessionId });
   const database = await db();
-  return await database.getSession(sessionId);
+  const result = await database.getSession(sessionId);
+  console.log("🔍 [SERVER] getSession result", {
+    sessionId,
+    hasResult: !!result,
+    result: result ? { id: result.id, roundsCount: result.rounds?.length } : null,
+  });
+  return result;
 }, "session:get");
 
 export const listSessions = query(async () => {

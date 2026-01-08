@@ -2,6 +2,7 @@ import { For } from "solid-js";
 import { HStack, Stack } from "styled-system/jsx";
 import * as Checkbox from "~/components/ui/checkbox";
 import { Text } from "~/components/ui/text";
+import { Input } from "~/components/ui/input";
 import type { Answer, Question } from "~/lib/domain";
 import { useConsultation } from "./consultation-context";
 
@@ -13,6 +14,13 @@ type QuestionCardProps = {
 
 export function QuestionCard(props: QuestionCardProps) {
   const ctx = useConsultation();
+
+  const customInputValue = () => props.answer?.customInput ?? "";
+
+  const handleCustomInputChange = (value: string) => {
+    console.log("QuestionCard:handleCustomInputChange", props.question.id, value);
+    ctx.handleCustomInput(props.question.id, value);
+  };
 
   return (
     <Stack gap="4">
@@ -44,6 +52,13 @@ export function QuestionCard(props: QuestionCardProps) {
             );
           }}
         </For>
+
+        <Input
+          placeholder="Other (please specify)..."
+          value={customInputValue()}
+          onInput={(e) => handleCustomInputChange(e.currentTarget.value)}
+          disabled={props.disabled}
+        />
       </Stack>
     </Stack>
   );

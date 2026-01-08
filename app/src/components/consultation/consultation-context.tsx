@@ -31,6 +31,7 @@ export type ConsultationController = {
   // Actions
   handleCreateSession: () => Promise<void>;
   handleToggleOption: (questionId: string, optionId: string) => void;
+  handleCustomInput: (questionId: string, value: string) => void;
   handleSubmitRound: () => Promise<void>;
   handleCreateNextRound: () => Promise<void>;
 
@@ -47,15 +48,35 @@ type ConsultationProviderProps = {
 };
 
 export function ConsultationProvider(props: ConsultationProviderProps) {
-  console.log("ConsultationProvider:init", props.sessionId);
+  console.log("ConsultationProvider:init", {
+    sessionId: props.sessionId,
+    hasSessionId: !!props.sessionId,
+  });
 
   const [prompt, setPrompt] = createSignal("");
   const [isSubmitting, setIsSubmitting] = createSignal(false);
   const [answers, setAnswers] = createStore<Answer[]>([]);
 
-  const sessionData = createAsync(() =>
-    props.sessionId ? getSession(props.sessionId) : Promise.resolve(null)
-  );
+  const sessionData = createAsync(() => {
+    console.log("ConsultationProvider:createAsync:fetching", {
+      sessionId: props.sessionId,
+      willFetch: !!props.sessionId,
+    });
+
+    if (props.sessionId) {
+      return getSession(props.sessionId).then((result) => {
+        console.log("ConsultationProvider:createAsync:result", {
+          sessionId: props.sessionId,
+          hasResult: !!result,
+          result,
+        });
+        return result;
+      });
+    }
+
+    console.log("ConsultationProvider:createAsync:noSessionId - returning null");
+    return Promise.resolve(null);
+  });
 
   const runCreateSession = useAction(createSession);
   const runSubmitAnswers = useAction(submitAnswers);
@@ -112,6 +133,24 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     }
   };
 
+  const handleCustomInput = (questionId: string, value: string) => {
+    console.log("ConsultationProvider:handleCustomInput", questionId, value);
+
+    const existing = answers.find((a) => a.questionId === questionId);
+    if (!existing) {
+      setAnswers([
+        ...answers,
+        { questionId, selectedOptionIds: [], customInput: value || null },
+      ]);
+    } else {
+      setAnswers(
+        (a) => a.questionId === questionId,
+        "customInput",
+        value || null
+      );
+    }
+  };
+
   const handleSubmitRound = async () => {
     console.log("ConsultationProvider:handleSubmitRound");
     const session = sessionData();
@@ -153,6 +192,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     isRoundComplete,
     handleCreateSession,
     handleToggleOption,
+    handleCustomInput,
     handleSubmitRound,
     handleCreateNextRound,
     setSessionId: props.setSessionId,
