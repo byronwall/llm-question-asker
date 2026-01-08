@@ -57,9 +57,7 @@ class JsonDb {
     const session: Session = {
       id: sessionId,
       prompt,
-      questions: [],
-      answers: [],
-      result: null,
+      rounds: [],
       createdAt: nowIso(),
       updatedAt: nowIso(),
     };
@@ -77,7 +75,7 @@ class JsonDb {
 
   async updateSession(
     sessionId: string,
-    patch: Partial<Pick<Session, "questions" | "answers" | "result">>
+    patch: Partial<Pick<Session, "rounds">>
   ): Promise<Session> {
     return this.mutateSession(sessionId, (session) => {
       Object.assign(session, patch);

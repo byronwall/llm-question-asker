@@ -1,13 +1,13 @@
-import { Router } from "@solidjs/router";
-import { FileRoutes } from "@solidjs/start/router";
+import { Router, Route } from "@solidjs/router";
 import { MetaProvider } from "@solidjs/meta";
 import { Suspense } from "solid-js";
 import { css } from "styled-system/css";
 import { Box } from "styled-system/jsx";
-
+import HomeRoute from "./routes/index";
 import "./index.css";
 
 export default function App() {
+  console.log("App component running! Client:", typeof window !== "undefined");
   return (
     <MetaProvider>
       <Router
@@ -17,7 +17,7 @@ export default function App() {
           </Box>
         )}
       >
-        <FileRoutes />
+        <Route path="/" component={HomeRoute} />
       </Router>
     </MetaProvider>
   );

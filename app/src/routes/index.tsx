@@ -1,292 +1,335 @@
-import { createAsync, useAction, useSearchParams } from "@solidjs/router";
 import { Meta, Title } from "@solidjs/meta";
+import { createAsync, useAction, useSearchParams } from "@solidjs/router";
 import { createEffect, createSignal, For, Show, Suspense } from "solid-js";
+import { createStore } from "solid-js/store";
 import { css } from "styled-system/css";
 import { Box, Container, HStack, Stack, VStack } from "styled-system/jsx";
-import { createStore } from "solid-js/store";
+import { MarkdownRenderer } from "~/components/MarkdownRenderer";
 
 import { Button } from "~/components/ui/button";
-import { Textarea } from "~/components/ui/textarea";
-import { Input } from "~/components/ui/input";
+import * as Card from "~/components/ui/card";
 import * as Checkbox from "~/components/ui/checkbox";
 import { Heading } from "~/components/ui/heading";
 import { Text } from "~/components/ui/text";
-import * as Card from "~/components/ui/card";
+import { Textarea } from "~/components/ui/textarea";
 
-import { createSession, getSession, submitAnswers } from "~/server/actions";
-import { formatPageTitle, SITE_DESCRIPTION } from "~/lib/site-meta";
-import type { Answer, Session } from "~/lib/domain";
+import type { Answer } from "~/lib/domain";
+import { SITE_DESCRIPTION, SITE_NAME } from "~/lib/site-meta";
+import {
+  createNextRound,
+  createSession,
+  getSession,
+  submitAnswers,
+} from "~/server/actions";
 
 export default function HomeRoute() {
+  console.log(
+    "HomeRoute component running! Client:",
+    typeof window !== "undefined"
+  );
+
+  createEffect(() => {
+    console.log("🎉 HomeRoute component hydrated and running!");
+  });
+
   const [searchParams, setSearchParams] = useSearchParams();
-  const sessionId = () => searchParams.sessionId as string | undefined;
+  const [prompt, setPrompt] = createSignal("");
+  const [isSubmitting, setIsSubmitting] = createSignal(false);
+  const [answers, setAnswers] = createStore<Answer[]>([]);
+
+  const sessionData = createAsync(() =>
+    searchParams.sessionId
+      ? getSession(searchParams.sessionId as string)
+      : Promise.resolve(null)
+  );
 
   const runCreateSession = useAction(createSession);
   const runSubmitAnswers = useAction(submitAnswers);
-  const sessionData = createAsync(
-    () => {
-      const id = sessionId();
-      if (!id) return Promise.resolve(null);
-      return getSession(id);
-    },
-    {
-      deferStream: true,
-    }
-  );
+  const runCreateNextRound = useAction(createNextRound);
 
-  const [prompt, setPrompt] = createSignal("");
-  const [isSubmitting, setIsSubmitting] = createSignal(false);
+  const handleCreateSession = async () => {
+    console.log("🚀 handleCreateSession called (Button onClick)");
+    const currentPrompt = prompt().trim();
+    if (!currentPrompt) return;
 
-  // Local store for answers: map questionId -> Answer
-  const [answersStore, setAnswersStore] = createStore<Record<string, Answer>>(
-    {}
-  );
-
-  createEffect(() => {
-    console.log("answersStore:", answersStore);
-  });
-
-  // Initialize answers store when questions are loaded
-  createEffect(() => {
-    const s = sessionData();
-    if (s?.questions) {
-      for (const q of s.questions) {
-        if (!answersStore[q.id]) {
-          setAnswersStore(q.id, {
-            questionId: q.id,
-            selectedOptionIds: [],
-            customInput: "",
-          });
-        }
-      }
-    }
-  });
-
-  createEffect(() => {
-    const s = sessionData();
-    if (s && !s.result && s.questions.length === 0) {
-      const t = setTimeout(() => window.location.reload(), 3000);
-      return () => clearTimeout(t);
-    }
-  });
-
-  const handleCreateSession = async (e: Event) => {
-    e.preventDefault();
-    if (!prompt().trim()) return;
     setIsSubmitting(true);
     try {
-      const session = await runCreateSession(prompt());
+      const session = await runCreateSession(currentPrompt);
       setSearchParams({ sessionId: session.id });
+    } catch (error) {
+      console.error("Error creating session:", error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleSubmitAnswers = async () => {
-    const s = sessionData();
-    if (!s) return;
+  const currentRound = () => {
+    const session = sessionData();
+    if (!session || !session.rounds.length) return null;
+    return session.rounds[session.rounds.length - 1];
+  };
+
+  const isRoundComplete = () => {
+    const round = currentRound();
+    if (!round) return false;
+    return round.answers.length === round.questions.length;
+  };
+
+  const handleToggleOption = (questionId: string, optionId: string) => {
+    const existing = answers.find((a) => a.questionId === questionId);
+    if (!existing) {
+      setAnswers([
+        ...answers,
+        { questionId, selectedOptionIds: [optionId], customInput: undefined },
+      ]);
+    } else {
+      const isSelected = existing.selectedOptionIds.includes(optionId);
+      const newOptions = isSelected
+        ? existing.selectedOptionIds.filter((id) => id !== optionId)
+        : [...existing.selectedOptionIds, optionId];
+
+      setAnswers(
+        (a) => a.questionId === questionId,
+        "selectedOptionIds",
+        newOptions
+      );
+    }
+  };
+
+  const handleSubmitRound = async () => {
+    const session = sessionData();
+    if (!session) return;
 
     setIsSubmitting(true);
     try {
-      const answersList = Object.values(answersStore);
-      await runSubmitAnswers({ sessionId: s.id, answers: answersList });
-      // Force re-fetch or rely on action return if we refetch session
-      window.location.reload(); // Simple reload to get updated session with result
+      await runSubmitAnswers({ sessionId: session.id, answers: [...answers] });
+      setAnswers([]); // Reset for next round if any
+    } catch (error) {
+      console.error("Error submitting answers:", error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const toggleOption = (
-    questionId: string,
-    optionId: string,
-    checked: boolean
-  ) => {
-    console.log(
-      `Toggling option ${optionId} for question ${questionId}. New checked state: ${checked}`
-    );
-    setAnswersStore(questionId, "selectedOptionIds", (prev) => {
-      let next;
-      if (checked) {
-        next = [...prev, optionId];
-      } else {
-        next = prev.filter((id) => id !== optionId);
-      }
-      console.log("New selectedOptionIds:", next);
-      return next;
-    });
+  const handleCreateNextRound = async () => {
+    const session = sessionData();
+    if (!session) return;
+
+    setIsSubmitting(true);
+    try {
+      await runCreateNextRound(session.id);
+    } catch (error) {
+      console.error("Error creating next round:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <Container py="10" maxW="4xl">
-      <Title>{formatPageTitle("Consultant")}</Title>
+      <Title>{SITE_NAME}</Title>
       <Meta name="description" content={SITE_DESCRIPTION} />
 
-      <Suspense fallback={<Box>Loading session...</Box>}>
+      <Stack gap="10">
         <Show
-          when={sessionId()}
+          when={searchParams.sessionId}
           fallback={
-            // STEP 1: PROMPT INPUT
-            <VStack gap="6" alignItems="stretch">
-              <Heading class={css({ fontSize: "3xl", fontWeight: "bold" })}>
-                What can I help you with today?
-              </Heading>
-              <Text color="fg.muted" class={css({ fontSize: "lg" })}>
-                Describe your goal or problem in detail. I'll ask a few
-                questions to understand better.
-              </Text>
-              <form onSubmit={handleCreateSession}>
-                <VStack gap="4" alignItems="stretch">
-                  <Textarea
-                    value={prompt()}
-                    onInput={(e) => setPrompt(e.currentTarget.value)}
-                    placeholder="e.g. I want to build a deck in my backyard, but I don't know where to start..."
-                    rows={6}
-                    class={css({ fontSize: "lg", p: 4 })}
-                  />
-                  <Button
-                    type="submit"
-                    class={css({ py: 6, fontSize: "xl" })}
-                    loading={isSubmitting()}
-                  >
-                    Start Consultation
-                  </Button>
-                </VStack>
-              </form>
+            <VStack gap="8" py="20" textAlign="center">
+              <Stack gap="2">
+                <Heading
+                  as="h1"
+                  class={css({ fontSize: "4xl", fontWeight: "black" })}
+                >
+                  {SITE_NAME}
+                </Heading>
+                <Text
+                  class={css({
+                    fontSize: "xl",
+                    color: "fg.muted",
+                    maxW: "2xl",
+                  })}
+                >
+                  {SITE_DESCRIPTION}
+                </Text>
+              </Stack>
+
+              <Box w="full" maxW="2xl" textAlign="left">
+                <Card.Root>
+                  <Card.Body>
+                    <Stack gap="4">
+                      <VStack gap="2" alignItems="stretch">
+                        <Text fontWeight="semibold">
+                          What are you looking to achieve?
+                        </Text>
+                        <Textarea
+                          placeholder="e.g., I want to build a mobile app for sustainable grocery shopping..."
+                          rows={4}
+                          value={prompt()}
+                          onInput={(e) => setPrompt(e.currentTarget.value)}
+                        />
+                      </VStack>
+
+                      <Button
+                        class={css({ py: 6, fontSize: "xl" })}
+                        loading={isSubmitting()}
+                        onClick={handleCreateSession}
+                      >
+                        Start Consultation
+                      </Button>
+                    </Stack>
+                  </Card.Body>
+                </Card.Root>
+              </Box>
             </VStack>
           }
         >
-          {(_id) => (
-            <Show when={sessionData()}>
+          <Suspense fallback={<Text>Loading session...</Text>}>
+            <Show
+              when={sessionData()}
+              fallback={<Text>Session not found.</Text>}
+            >
               {(session) => (
-                <VStack gap="8" alignItems="stretch">
-                  <Show when={session().result}>
-                    {/* STEP 3: RESULT */}
-                    <Box>
-                      <Heading
-                        class={css({ fontSize: "2xl", fontWeight: "bold" })}
-                        mb="4"
-                      >
-                        Recommendation
-                      </Heading>
-                      <Box
+                <Stack gap="8">
+                  <Box>
+                    <Heading as="h1" class={css({ fontSize: "2xl", mb: "2" })}>
+                      Consultation Session
+                    </Heading>
+                    <Text color="fg.muted">
+                      Original Request: "{session().prompt}"
+                    </Text>
+                  </Box>
+
+                  <For each={session().rounds}>
+                    {(round, index) => (
+                      <Card.Root
                         class={css({
-                          whiteSpace: "pre-wrap",
-                          lineHeight: "relaxed",
-                          bg: "bg.subtle",
-                          p: "6",
-                          borderRadius: "lg",
+                          opacity:
+                            index() === session().rounds.length - 1 ? 1 : 0.6,
                         })}
                       >
-                        {session().result}
-                      </Box>
-                      <Button
-                        mt="8"
-                        variant="outline"
-                        onClick={() => (window.location.href = "/")}
-                      >
-                        Start Over
-                      </Button>
-                    </Box>
-                  </Show>
-
-                  <Show
-                    when={!session().result && session().questions.length > 0}
-                  >
-                    {/* STEP 2: QUESTIONS */}
-                    <Heading
-                      class={css({ fontSize: "2xl", fontWeight: "bold" })}
-                    >
-                      A few follow-up questions...
-                    </Heading>
-                    <For each={session().questions}>
-                      {(question) => (
-                        <Card.Root>
-                          <Card.Header>
-                            <Card.Title>{question.text}</Card.Title>
-                          </Card.Header>
-                          <Card.Body>
-                            <Stack gap="3">
-                              <For each={question.options}>
-                                {(option) => (
-                                  <Checkbox.Root
-                                    checked={answersStore[
-                                      question.id
-                                    ]?.selectedOptionIds.includes(option.id)}
-                                    onCheckedChange={(details) =>
-                                      toggleOption(
-                                        question.id,
-                                        option.id,
-                                        !!details.checked
+                        <Card.Header>
+                          <Heading as="h2" class={css({ fontSize: "xl" })}>
+                            Round {index() + 1}
+                          </Heading>
+                        </Card.Header>
+                        <Card.Body>
+                          <Stack gap="8">
+                            <For each={round.questions}>
+                              {(question) => {
+                                const answer = () =>
+                                  index() === session().rounds.length - 1
+                                    ? answers.find(
+                                        (a) => a.questionId === question.id
                                       )
-                                    }
-                                  >
-                                    <Checkbox.Control>
-                                      <Checkbox.Indicator />
-                                    </Checkbox.Control>
-                                    <Checkbox.HiddenInput />
-                                    <Checkbox.Label>
-                                      {option.text}
-                                    </Checkbox.Label>
-                                  </Checkbox.Root>
-                                )}
-                              </For>
-                              <Box mt="2">
-                                <Text
-                                  class={css({
-                                    fontSize: "sm",
-                                    color: "fg.muted",
-                                    mb: 1,
-                                  })}
-                                >
-                                  Other / Specific Details:
-                                </Text>
-                                <Input
-                                  value={
-                                    answersStore[question.id]?.customInput || ""
-                                  }
-                                  onInput={(e) =>
-                                    setAnswersStore(
-                                      question.id,
-                                      "customInput",
-                                      e.currentTarget.value
-                                    )
-                                  }
-                                  placeholder="Type your answer here..."
-                                />
-                              </Box>
-                            </Stack>
-                          </Card.Body>
-                        </Card.Root>
-                      )}
-                    </For>
-                    <Button
-                      class={css({ py: 6, fontSize: "xl" })}
-                      onClick={handleSubmitAnswers}
-                      loading={isSubmitting()}
-                    >
-                      Submit Answers & Get Result
-                    </Button>
-                  </Show>
+                                    : round.answers.find(
+                                        (a) => a.questionId === question.id
+                                      );
 
-                  <Show
-                    when={!session().result && session().questions.length === 0}
-                  >
-                    <VStack py="20" gap="4">
-                      <Heading>Analyzing your request...</Heading>
-                      <Text color="fg.muted">
-                        Generating follow-up questions. This might take a
-                        moment.
-                      </Text>
-                      <div />
-                    </VStack>
-                  </Show>
-                </VStack>
+                                return (
+                                  <Stack gap="4">
+                                    <Text fontWeight="bold">
+                                      {question.text}
+                                    </Text>
+                                    <Stack gap="2">
+                                      <For each={question.options}>
+                                        {(option) => (
+                                          <HStack gap="3">
+                                            <Checkbox.Root
+                                              checked={answer()?.selectedOptionIds.includes(
+                                                option.id
+                                              )}
+                                              onCheckedChange={() => {
+                                                if (
+                                                  index() ===
+                                                  session().rounds.length - 1
+                                                ) {
+                                                  handleToggleOption(
+                                                    question.id,
+                                                    option.id
+                                                  );
+                                                }
+                                              }}
+                                              disabled={
+                                                index() <
+                                                session().rounds.length - 1
+                                              }
+                                            >
+                                              <Checkbox.Control />
+                                              <Checkbox.Label>
+                                                {option.text}
+                                              </Checkbox.Label>
+                                              <Checkbox.HiddenInput />
+                                            </Checkbox.Root>
+                                          </HStack>
+                                        )}
+                                      </For>
+                                    </Stack>
+                                  </Stack>
+                                );
+                              }}
+                            </For>
+
+                            <Show when={round.result}>
+                              <Box
+                                p="6"
+                                bg="bg.subtle"
+                                borderRadius="md"
+                                border="1px solid"
+                                borderColor="border.default"
+                              >
+                                <Heading
+                                  as="h3"
+                                  class={css({ fontSize: "lg", mb: "4" })}
+                                >
+                                  Analysis & Recommendations
+                                </Heading>
+
+                                <MarkdownRenderer>
+                                  {round.result}
+                                </MarkdownRenderer>
+
+                                <Show
+                                  when={index() === session().rounds.length - 1}
+                                >
+                                  <Button
+                                    mt="6"
+                                    onClick={handleCreateNextRound}
+                                    loading={isSubmitting()}
+                                  >
+                                    Refine with Another Round
+                                  </Button>
+                                </Show>
+                              </Box>
+                            </Show>
+
+                            <Show
+                              when={
+                                !round.result &&
+                                index() === session().rounds.length - 1
+                              }
+                            >
+                              <Button
+                                size="lg"
+                                disabled={
+                                  answers.length < round.questions.length
+                                }
+                                onClick={handleSubmitRound}
+                                loading={isSubmitting()}
+                              >
+                                Submit Answers
+                              </Button>
+                            </Show>
+                          </Stack>
+                        </Card.Body>
+                      </Card.Root>
+                    )}
+                  </For>
+                </Stack>
               )}
             </Show>
-          )}
+          </Suspense>
         </Show>
-      </Suspense>
+      </Stack>
     </Container>
   );
 }

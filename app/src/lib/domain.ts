@@ -1,11 +1,17 @@
 export interface Session {
   id: string;
   prompt: string;
+  rounds: Round[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Round {
+  id: string;
   questions: Question[];
   answers: Answer[];
   result: string | null;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface Question {

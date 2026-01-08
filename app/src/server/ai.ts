@@ -16,7 +16,10 @@ function requireApiKey() {
   }
 }
 
-export async function generateQuestions(prompt: string): Promise<Question[]> {
+export async function generateQuestions(
+  prompt: string,
+  history: string = ""
+): Promise<Question[]> {
   requireApiKey();
 
   const schema = z.object({
@@ -36,9 +39,13 @@ export async function generateQuestions(prompt: string): Promise<Question[]> {
             .max(5),
         })
       )
-      .min(3)
-      .max(5),
+      .min(8)
+      .max(12),
   });
+
+  const contextPrompt = history
+    ? `Previous conversation history:\n${history}\n\nBased on this history, ask deeper follow-up questions.`
+    : "Generate probing multiple-choice questions to better understand their needs and provide a tailored solution.";
 
   const { object } = await generateObject({
     model: getModel(),
@@ -48,7 +55,8 @@ export async function generateQuestions(prompt: string): Promise<Question[]> {
       "The user has provided the following prompt:",
       `"${prompt}"`,
       "",
-      "Generate 3-5 probing multiple-choice questions to better understand their needs and provide a tailored solution.",
+      contextPrompt,
+      "Generate 10 distinct questions.",
       "Ensure the questions cover different aspects of the problem (e.g., specific preferences, budget, constraints, style).",
       "Provide 2-5 distinct options for each question.",
     ].join("\n"),
@@ -59,27 +67,9 @@ export async function generateQuestions(prompt: string): Promise<Question[]> {
 
 export async function generateResult(
   prompt: string,
-  questions: Question[],
-  answers: Answer[]
+  history: string
 ): Promise<string> {
   requireApiKey();
-
-  const qaPairs = questions
-    .map((q) => {
-      const answer = answers.find((a) => a.questionId === q.id);
-      if (!answer) return `Q: ${q.text}\nA: (Skipped)`;
-
-      const selectedTexts = q.options
-        .filter((opt) => answer.selectedOptionIds.includes(opt.id))
-        .map((opt) => opt.text);
-
-      if (answer.customInput) {
-        selectedTexts.push(`Custom: ${answer.customInput}`);
-      }
-
-      return `Q: ${q.text}\nA: ${selectedTexts.join(", ")}`;
-    })
-    .join("\n\n");
 
   const { text } = await generateText({
     model: getModel(),
@@ -88,8 +78,8 @@ export async function generateResult(
       "The user's initial request:",
       `"${prompt}"`,
       "",
-      "You asked follow-up questions, and here are the user's answers:",
-      qaPairs,
+      "Here is the detailed Q&A history:",
+      history,
       "",
       "Based on this information, provide a comprehensive, structured, and helpful response/solution.",
       "Use markdown formatting.",

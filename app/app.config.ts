@@ -5,6 +5,9 @@ import lucidePreprocess from "vite-plugin-lucide-preprocess";
 export default defineConfig({
   vite: {
     plugins: [lucidePreprocess(), tsconfigPaths()],
-    optimizeDeps: {},
+
+    optimizeDeps: {
+      include: ["solid-markdown > micromark", "solid-markdown > unified"],
+    },
   },
 });
