@@ -159,3 +159,9 @@ export const getSession = query(async (sessionId: string) => {
   const database = await db();
   return await database.getSession(sessionId);
 }, "session:get");
+
+export const listSessions = query(async () => {
+  "use server";
+  const database = await db();
+  return await database.listSessions();
+}, "session:list");
