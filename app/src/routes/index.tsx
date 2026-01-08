@@ -20,6 +20,11 @@ import { SessionList } from "~/components/consultation/SessionList";
 function SessionView() {
   const ctx = useConsultation();
 
+  const handleBackClick = () => {
+    console.log("SessionView:handleBackClick");
+    ctx.setSessionId("");
+  };
+
   return (
     <Suspense fallback={<Text>Loading session...</Text>}>
       <Show
@@ -28,7 +33,12 @@ function SessionView() {
       >
         {(session) => (
           <Stack gap="8">
-            <SessionHeader prompt={session().prompt} />
+            <SessionHeader
+              prompt={session().prompt}
+              title={session().title}
+              description={session().description}
+              onBackClick={handleBackClick}
+            />
 
             <Tabs.Root defaultValue={`round-${session().rounds.length - 1}`}>
               <Tabs.List>
@@ -77,7 +87,7 @@ export default function HomeRoute() {
   };
 
   return (
-    <Container py="10" maxW="4xl">
+    <Container py="4" maxW="4xl">
       <Title>{SITE_NAME}</Title>
       <Meta name="description" content={SITE_NAME} />
 
@@ -85,11 +95,11 @@ export default function HomeRoute() {
         sessionId={searchParams.sessionId as string | undefined}
         setSessionId={setSessionId}
       >
-        <Stack gap="10">
+        <Stack gap="8">
           <Show
             when={searchParams.sessionId}
             fallback={
-              <Stack gap="8">
+              <Stack gap="6">
                 <WelcomeCard />
                 <SessionList onSelectSession={setSessionId} />
               </Stack>
