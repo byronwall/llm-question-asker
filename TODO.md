@@ -1,6 +1,5 @@
 # Immediate work to get this tested
 
-- Need to list all sessions on index page
 - Need to offer a full text spot in the questions
 - Should add a box to the input which is the "goal" and a separate one for the context
 - For additional rounds, provide a text box that allows user to guide the questions and any changes to expected output
@@ -10,3 +9,4 @@
 - Add a table of contents to the markdown renderer - place on left edge like Less Wrong
 - Update README
 - Push to github
+- Ensure that all questions allow free-form answers  alongside the choices (add a text box)
