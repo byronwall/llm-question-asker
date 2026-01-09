@@ -1,8 +1,8 @@
 import { For } from "solid-js";
-import { HStack, Stack } from "styled-system/jsx";
+import { Box, HStack, Stack } from "styled-system/jsx";
 import * as Checkbox from "~/components/ui/checkbox";
 import { Text } from "~/components/ui/text";
-import { Input } from "~/components/ui/input";
+import { Textarea } from "~/components/ui/textarea";
 import type { Answer, Question } from "~/lib/domain";
 import { useConsultation } from "./consultation-context";
 
@@ -18,7 +18,11 @@ export function QuestionCard(props: QuestionCardProps) {
   const customInputValue = () => props.answer?.customInput ?? "";
 
   const handleCustomInputChange = (value: string) => {
-    console.log("QuestionCard:handleCustomInputChange", props.question.id, value);
+    console.log(
+      "QuestionCard:handleCustomInputChange",
+      props.question.id,
+      value
+    );
     ctx.handleCustomInput(props.question.id, value);
   };
 
@@ -53,12 +57,15 @@ export function QuestionCard(props: QuestionCardProps) {
           }}
         </For>
 
-        <Input
-          placeholder="Other (please specify)..."
-          value={customInputValue()}
-          onInput={(e) => handleCustomInputChange(e.currentTarget.value)}
-          disabled={props.disabled}
-        />
+        <Box pl="7">
+          <Textarea
+            autoresize
+            placeholder="Other (please specify)..."
+            value={customInputValue()}
+            onInput={(e) => handleCustomInputChange(e.currentTarget.value)}
+            disabled={props.disabled}
+          />
+        </Box>
       </Stack>
     </Stack>
   );
