@@ -22,12 +22,19 @@ export async function generateQuestions(
 ): Promise<Question[]> {
   requireApiKey();
 
+  const questionTypeSchema = z
+    .enum(["user_goals", "output_related"])
+    .describe(
+      "user_goals = questions about the user's prompt, goals, constraints, preferences. output_related = questions about the desired format, shape, and structure of the final response."
+    );
+
   const schema = z.object({
     questions: z
       .array(
         z.object({
           id: z.string(),
           text: z.string().describe("The text of the question"),
+          type: questionTypeSchema,
           options: z
             .array(
               z.object({
@@ -56,9 +63,26 @@ export async function generateQuestions(
       `"${prompt}"`,
       "",
       contextPrompt,
-      "Generate 10 distinct questions.",
-      "Ensure the questions cover different aspects of the problem (e.g., specific preferences, budget, constraints, style).",
-      "Provide 2-5 distinct options for each question.",
+      "",
+      "Generate 10 distinct questions with two types:",
+      "",
+      "TYPE 1 - user_goals (7-8 questions):",
+      "Questions about the user's actual goals, preferences, constraints, context, and requirements.",
+      "Examples: budget, timeline, specific preferences, use case, audience, constraints, style.",
+      "",
+      "TYPE 2 - output_related (2-3 questions):",
+      "Questions about how the user wants the final response structured and formatted.",
+      "Focus on the SHAPE and FORMAT of the desired output. Possible shapes include:",
+      "- Ranked list of options with brief explanations",
+      "- Side-by-side comparison table",
+      "- Pros and cons analysis",
+      "- Step-by-step action plan",
+      "- Ideas for further research or exploration",
+      "- Executive summary with detailed breakdown",
+      "- Decision framework or criteria checklist",
+      "Keep these flexible - ask about level of detail, comparison style, and content focus.",
+      "",
+      "Provide 3-8 distinct options for each question.",
     ].join("\n"),
   });
 
