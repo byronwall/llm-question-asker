@@ -518,6 +518,18 @@ Use these exact tags so they’re searchable:
 
 ---
 
+## Testing and verification
+
+- Run `pnpm build` to verify the build passes after making changes.
+- This project uses Vinxi (SolidStart) for building. The build compiles:
+  - SSR bundle
+  - Client bundle
+  - Server functions bundle
+- The build will catch TypeScript errors and bundling issues.
+- There are no unit tests currently; verification is done via successful build and manual testing.
+
+---
+
 ## Quick checklist (before you finish)
 
 - [ ] File is < 200 LOC (or intentionally justified)
