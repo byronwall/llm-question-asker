@@ -10,6 +10,7 @@ import { createStore, type Store } from "solid-js/store";
 import { createAsync, useAction } from "@solidjs/router";
 import type { Answer, Round, Session } from "~/lib/domain";
 import {
+  addMoreQuestions,
   createNextRound,
   createSession,
   getSession,
@@ -34,6 +35,7 @@ export type ConsultationController = {
   handleCustomInput: (questionId: string, value: string) => void;
   handleSubmitRound: () => Promise<void>;
   handleCreateNextRound: () => Promise<void>;
+  handleAddMoreQuestions: () => Promise<void>;
 
   // URL params
   setSessionId: (id: string) => void;
@@ -81,6 +83,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
   const runCreateSession = useAction(createSession);
   const runSubmitAnswers = useAction(submitAnswers);
   const runCreateNextRound = useAction(createNextRound);
+  const runAddMoreQuestions = useAction(addMoreQuestions);
 
   const currentRound = () => {
     const session = sessionData();
@@ -182,6 +185,22 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     }
   };
 
+  const handleAddMoreQuestions = async () => {
+    console.log("ConsultationProvider:handleAddMoreQuestions");
+    const session = sessionData();
+    if (!session) return;
+
+    setIsSubmitting(true);
+    try {
+      await runAddMoreQuestions({ sessionId: session.id, answers: [...answers] });
+      // Don't reset answers - user may continue answering the new questions
+    } catch (error) {
+      console.error("ConsultationProvider:handleAddMoreQuestions:error", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const value = createMemo<ConsultationController>(() => ({
     prompt,
     setPrompt,
@@ -195,6 +214,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     handleCustomInput,
     handleSubmitRound,
     handleCreateNextRound,
+    handleAddMoreQuestions,
     setSessionId: props.setSessionId,
   }));
 

@@ -111,14 +111,23 @@ export function RoundContent(props: RoundContentProps) {
             </Show>
 
             <Show when={!props.round.result && props.isLastRound}>
-              <Button
-                size="lg"
-                disabled={ctx.answers.length < props.round.questions.length}
-                onClick={ctx.handleSubmitRound}
-                loading={ctx.isSubmitting()}
-              >
-                Submit Answers
-              </Button>
+              <HStack gap="4">
+                <Button
+                  variant="outline"
+                  onClick={ctx.handleAddMoreQuestions}
+                  loading={ctx.isSubmitting()}
+                >
+                  Get More Questions
+                </Button>
+                <Button
+                  size="lg"
+                  disabled={ctx.answers.length < props.round.questions.length}
+                  onClick={ctx.handleSubmitRound}
+                  loading={ctx.isSubmitting()}
+                >
+                  Generate Output
+                </Button>
+              </HStack>
             </Show>
           </Stack>
         </Card.Body>
