@@ -1,5 +1,9 @@
 # Immediate work to get this tested
 
+## Branding & SEO
+
+- Need to pick a better name for the site
+
 ## Question Types
 
 - add a new question type to help identify the user's overall goal -- so not just questions to get context, but really try to determine their overall goal - reveal the question type as a small chip in the UI when showing the questions
@@ -24,10 +28,6 @@
 ## Prompt & Response Strategy
 
 - Should probably revise the prompt to avoid "I can do next" type responses - want that to be controlled by the app and not the LLM's default offering.
-
-## Branding & SEO
-
-- Clean up the page title + ensure that there is some OG content for share links
 
 ## Did not work
 

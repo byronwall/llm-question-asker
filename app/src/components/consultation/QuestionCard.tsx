@@ -4,8 +4,9 @@ import * as Checkbox from "~/components/ui/checkbox";
 import { Text } from "~/components/ui/text";
 import { Textarea } from "~/components/ui/textarea";
 import { IconButton } from "~/components/ui/icon-button";
+import { Badge } from "~/components/ui/badge";
 import { Trash2 } from "lucide-solid";
-import type { Answer, Question } from "~/lib/domain";
+import type { Answer, Question, QuestionType } from "~/lib/domain";
 import { useConsultation } from "./consultation-context";
 
 type QuestionCardProps = {
@@ -14,6 +15,15 @@ type QuestionCardProps = {
   disabled: boolean;
   hasResult: boolean;
 };
+
+function getQuestionTypeLabel(type: QuestionType): string {
+  const labels: Record<QuestionType, string> = {
+    goal_discovery: "Goal Discovery",
+    user_goals: "Context",
+    output_related: "Output Format",
+  };
+  return labels[type];
+}
 
 export function QuestionCard(props: QuestionCardProps) {
   const ctx = useConsultation();
@@ -52,7 +62,14 @@ export function QuestionCard(props: QuestionCardProps) {
   return (
     <Stack gap="4">
       <HStack justifyContent="space-between" alignItems="flex-start">
-        <Text fontWeight="bold">{props.question.text}</Text>
+        <Stack gap="2" flex="1">
+          <HStack gap="2" alignItems="center">
+            <Badge size="sm" variant="subtle">
+              {getQuestionTypeLabel(props.question.type)}
+            </Badge>
+          </HStack>
+          <Text fontWeight="bold">{props.question.text}</Text>
+        </Stack>
         <Show when={showDeleteButton()}>
           <IconButton
             variant="outline"

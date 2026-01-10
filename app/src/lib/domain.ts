@@ -16,7 +16,7 @@ export interface Round {
   createdAt: string;
 }
 
-export type QuestionType = "user_goals" | "output_related";
+export type QuestionType = "goal_discovery" | "user_goals" | "output_related";
 
 export interface Question {
   id: string;

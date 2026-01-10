@@ -23,9 +23,9 @@ export async function generateQuestions(
   requireApiKey();
 
   const questionTypeSchema = z
-    .enum(["user_goals", "output_related"])
+    .enum(["goal_discovery", "user_goals", "output_related"])
     .describe(
-      "user_goals = questions about the user's prompt, goals, constraints, preferences. output_related = questions about the desired format, shape, and structure of the final response."
+      "goal_discovery = questions that probe for the user's ultimate objective or underlying goal - what they're really trying to achieve at the highest level. user_goals = questions about specific goals, constraints, and preferences related to their prompt. output_related = questions about the desired format, shape, and structure of the final response."
     );
 
   const schema = z.object({
@@ -64,15 +64,21 @@ export async function generateQuestions(
       "",
       contextPrompt,
       "",
-      "Generate 10 distinct questions with two types:",
+      "Generate 10 distinct questions with three types:",
       "",
       "IMPORTANT: Users may skip questions they don't want to answer or delete questions that aren't relevant to them. Design questions that are helpful but not mandatory.",
       "",
-      "TYPE 1 - user_goals (7-8 questions):",
-      "Questions about the user's actual goals, preferences, constraints, context, and requirements.",
+      "TYPE 1 - goal_discovery (1-2 questions):",
+      "Questions that probe for the user's ultimate objective or underlying goal.",
+      "These questions should reveal what the user is REALLY trying to achieve at the highest level.",
+      "Examples: What's the bigger picture? What problem are you ultimately trying to solve? What success looks like?",
+      "Focus on uncovering the fundamental 'why' behind their request.",
+      "",
+      "TYPE 2 - user_goals (5-6 questions):",
+      "Questions about the user's specific goals, preferences, constraints, context, and requirements.",
       "Examples: budget, timeline, specific preferences, use case, audience, constraints, style.",
       "",
-      "TYPE 2 - output_related (2-3 questions):",
+      "TYPE 3 - output_related (2-3 questions):",
       "Questions about how the user wants the final response structured and formatted.",
       "Focus on the SHAPE and FORMAT of the desired output. Possible shapes include:",
       "- Ranked list of options with brief explanations",
