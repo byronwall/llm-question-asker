@@ -89,6 +89,20 @@ export function RoundContent(props: RoundContentProps) {
 
         <Card.Body>
           <Stack gap="6">
+            <Show when={!props.round.result && props.isLastRound}>
+              <Box
+                class={css({
+                  fontSize: "xs",
+                  color: "gray.500",
+                  fontStyle: "italic",
+                  mb: 2,
+                })}
+              >
+                Tip: You can select multiple options for each question. Questions
+                can be skipped if you prefer not to answer them.
+              </Box>
+            </Show>
+
             <Box position="relative">
               <Box
                 class={css({
@@ -109,6 +123,7 @@ export function RoundContent(props: RoundContentProps) {
                           question={question}
                           answer={answer()}
                           disabled={disabled()}
+                          hasResult={hasResult()}
                         />
                       );
                     }}
@@ -148,7 +163,6 @@ export function RoundContent(props: RoundContentProps) {
                 </Button>
                 <Button
                   size="lg"
-                  disabled={ctx.answers.length < props.round.questions.length}
                   onClick={ctx.handleSubmitRound}
                   loading={ctx.isSubmitting()}
                 >

@@ -13,6 +13,7 @@ import {
   addMoreQuestions,
   createNextRound,
   createSession,
+  deleteQuestion,
   getSession,
   submitAnswers,
 } from "~/server/actions";
@@ -36,6 +37,7 @@ export type ConsultationController = {
   handleSubmitRound: () => Promise<void>;
   handleCreateNextRound: () => Promise<void>;
   handleAddMoreQuestions: () => Promise<void>;
+  handleDeleteQuestion: (questionId: string) => Promise<void>;
 
   // URL params
   setSessionId: (id: string) => void;
@@ -84,6 +86,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
   const runSubmitAnswers = useAction(submitAnswers);
   const runCreateNextRound = useAction(createNextRound);
   const runAddMoreQuestions = useAction(addMoreQuestions);
+  const runDeleteQuestion = useAction(deleteQuestion);
 
   const currentRound = () => {
     const session = sessionData();
@@ -201,6 +204,23 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     }
   };
 
+  const handleDeleteQuestion = async (questionId: string) => {
+    console.log("ConsultationProvider:handleDeleteQuestion", questionId);
+    const session = sessionData();
+    if (!session) return;
+
+    setIsSubmitting(true);
+    try {
+      await runDeleteQuestion({ sessionId: session.id, questionId });
+      // Also remove the answer from local state
+      setAnswers(answers.filter((a) => a.questionId !== questionId));
+    } catch (error) {
+      console.error("ConsultationProvider:handleDeleteQuestion:error", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const value = createMemo<ConsultationController>(() => ({
     prompt,
     setPrompt,
@@ -215,6 +235,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     handleSubmitRound,
     handleCreateNextRound,
     handleAddMoreQuestions,
+    handleDeleteQuestion,
     setSessionId: props.setSessionId,
   }));
 

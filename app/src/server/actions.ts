@@ -250,6 +250,41 @@ export const getSession = query(async (sessionId: string) => {
   return result;
 }, "session:get");
 
+export const deleteQuestion = action(
+  async (input: { sessionId: string; questionId: string }) => {
+    "use server";
+    console.log("🔧 [SERVER] deleteQuestion action called", {
+      sessionId: input.sessionId,
+      questionId: input.questionId,
+    });
+
+    const database = await db();
+    const session = await database.getSession(input.sessionId);
+    if (!session) throw new Error("Session not found");
+
+    const rounds = [...session.rounds];
+    const currentRoundIndex = rounds.length - 1;
+    if (currentRoundIndex < 0) throw new Error("No rounds found");
+    const currentRound = rounds[currentRoundIndex];
+
+    // Remove the question from the current round
+    currentRound.questions = currentRound.questions.filter(
+      (q) => q.id !== input.questionId
+    );
+
+    // Also remove any answer associated with this question
+    currentRound.answers = currentRound.answers.filter(
+      (a) => a.questionId !== input.questionId
+    );
+
+    await database.updateSession(input.sessionId, { rounds });
+    console.log("✅ [SERVER] Question deleted successfully");
+
+    return { success: true };
+  },
+  "session:deleteQuestion"
+);
+
 export const listSessions = query(async () => {
   "use server";
   const database = await db();

@@ -7,11 +7,6 @@
 - Allow user to highlight text and add commentary - incorporate that into questions and next output - call it `feedback`
 - Allow user to request questions in a specific direction? Maybe offer a "suggestions for next questions" as part of the structured response... then show a drop down menu where the user can choose, submit, and get new questions in a certain way
 
-## Question Management
-
-- Allow user to delete question if they don't want to consider it - this should remove from data structure immediately and not just hide
-- Allow questions to be skipped, not all need answered -- revise prompt to indicate that the user may skip questions that they don't want to answer (this is in addition to being able to delete them)
-
 ## UX Improvement
 
 - When results come back for 2nd round of questions, need to select that tab and scroll to top to answer them

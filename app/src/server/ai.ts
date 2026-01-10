@@ -66,6 +66,8 @@ export async function generateQuestions(
       "",
       "Generate 10 distinct questions with two types:",
       "",
+      "IMPORTANT: Users may skip questions they don't want to answer or delete questions that aren't relevant to them. Design questions that are helpful but not mandatory.",
+      "",
       "TYPE 1 - user_goals (7-8 questions):",
       "Questions about the user's actual goals, preferences, constraints, context, and requirements.",
       "Examples: budget, timeline, specific preferences, use case, audience, constraints, style.",
