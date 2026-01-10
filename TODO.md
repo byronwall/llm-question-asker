@@ -1,14 +1,34 @@
 # Immediate work to get this tested
 
-- Need to offer a full text spot in the questions
-- Should add a box to the input which is the "goal" and a separate one for the context
+## Input & User Guidance
+
+- Should add a box to the input which is the "goal" and a separate one for the context - add a new question type for this - reveal the question type as a small chip in the UI when showing the questions
 - For additional rounds, provide a text box that allows user to guide the questions and any changes to expected output
 - Allow user to highlight text and add commentary - incorporate that into questions and next output - call it `feedback`
-- Allow user to "get more questions" in current round, or "generate output" -- if more questions, add them to the current round alongside other ones -- this expands the current option which is just to get the output
+- Allow user to request questions in a specific direction? Maybe offer a "suggestions for next questions" as part of the structured response... then show a drop down menu where the user can choose, submit, and get new questions in a certain way
 
-## Working
+## Question Management
 
-- Add a set of options for the desired output length - consider expanding to shape in future too - table, list, pros/cons, PRD, etc
+- Allow user to delete question if they don't want to consider it - this should remove from data structure immediately and not just hide
+- Allow questions to be skipped, not all need answered -- revise prompt to indicate that the user may skip questions that they don't want to answer (this is in addition to being able to delete them)
+
+## UX Improvement
+
+- When results come back for 2nd round of questions, need to select that tab and scroll to top to answer them
+
+## UI Improvement
+
+## Infrastructure & Session Logic
+
+- Consider how to handle network requests as the user starts more than 1 session -- question answering did not force the UI to update when going somewhere else -- starting a new session included a redirect even though I left the original page
+
+## Prompt & Response Strategy
+
+- Should probably revise the prompt to avoid "I can do next" type responses - want that to be controlled by the app and not the LLM's default offering.
+
+## Branding & SEO
+
+- Clean up the page title + ensure that there is some OG content for share links
 
 ## Did not work
 

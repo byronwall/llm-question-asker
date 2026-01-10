@@ -55,17 +55,44 @@ export function RoundContent(props: RoundContentProps) {
   const hasResult = () => !!props.round.result;
 
   return (
-    <Stack gap="6">
-      <Card.Root>
-        <Card.Header>
-          <Card.Title>Questions</Card.Title>
-        </Card.Header>
+    <div
+      class={css({
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+        overflow: "visible",
+      })}
+    >
+      <Card.Root class={css({ overflow: "visible !important" })}>
+        <Box
+          class={css({
+            position: hasResult() && questionsExpanded() ? "sticky" : "static",
+            top: 0,
+            bg: "white",
+            zIndex: 10,
+            px: 6,
+            pt: 6,
+            pb: hasResult() && questionsExpanded() ? 4 : 0,
+            borderBottomWidth: hasResult() && questionsExpanded() ? "1px" : "0",
+            borderBottomColor: "border.default",
+          })}
+        >
+          <HStack justifyContent="space-between" alignItems="center">
+            <Card.Title>Questions</Card.Title>
+            <Show when={hasResult() && questionsExpanded()}>
+              <Button variant="outline" size="sm" onClick={handleToggleQuestions}>
+                Hide Questions
+              </Button>
+            </Show>
+          </HStack>
+        </Box>
+
         <Card.Body>
           <Stack gap="6">
             <Box position="relative">
               <Box
                 class={css({
-                  maxHeight: hasResult() && !questionsExpanded() ? "200px" : "none",
+                  maxHeight: hasResult() && !questionsExpanded() ? "100px" : "none",
                   overflow: "hidden",
                   position: "relative",
                 })}
@@ -151,6 +178,6 @@ export function RoundContent(props: RoundContentProps) {
           </Card.Body>
         </Card.Root>
       </Show>
-    </Stack>
+    </div>
   );
 }

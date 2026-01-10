@@ -1,6 +1,6 @@
 import { Box, HStack, Stack } from "styled-system/jsx";
 import { css } from "styled-system/css";
-import { createSignal, Show } from "solid-js";
+import { createSignal, Show, onMount, createEffect } from "solid-js";
 import { Heading } from "~/components/ui/heading";
 import { Text } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
@@ -15,6 +15,8 @@ type SessionHeaderProps = {
 
 export function SessionHeader(props: SessionHeaderProps) {
   const [isExpanded, setIsExpanded] = createSignal(false);
+  const [isClamped, setIsClamped] = createSignal(false);
+  let contentRef: HTMLDivElement | undefined;
 
   const handleBackClick = () => {
     console.log("SessionHeader:handleBackClick");
@@ -25,6 +27,26 @@ export function SessionHeader(props: SessionHeaderProps) {
     console.log("SessionHeader:handleToggleExpand", !isExpanded());
     setIsExpanded(!isExpanded());
   };
+
+  const checkIfClamped = () => {
+    if (contentRef) {
+      const clamped = contentRef.scrollHeight > contentRef.clientHeight;
+      console.log("SessionHeader:checkIfClamped", clamped, {
+        scrollHeight: contentRef.scrollHeight,
+        clientHeight: contentRef.clientHeight,
+      });
+      setIsClamped(clamped);
+    }
+  };
+
+  onMount(() => {
+    checkIfClamped();
+  });
+
+  createEffect(() => {
+    props.prompt;
+    setTimeout(() => checkIfClamped(), 100);
+  });
 
   return (
     <>
@@ -54,13 +76,39 @@ export function SessionHeader(props: SessionHeaderProps) {
             borderRadius="md"
             borderWidth="1px"
             borderColor="gray.200"
+            position="relative"
           >
             <Stack gap="2">
-              <Text fontSize="sm" fontWeight="semibold" color="gray.600">
-                Original Prompt
-              </Text>
+              <Box
+                class={css({
+                  position: isExpanded() ? "sticky" : "static",
+                  top: 0,
+                  bg: "white",
+                  zIndex: 10,
+                  pb: 2,
+                  mb: isExpanded() ? 2 : 0,
+                  borderBottomWidth: isExpanded() ? "1px" : "0",
+                  borderBottomColor: "gray.200",
+                })}
+              >
+                <HStack justifyContent="space-between" alignItems="center">
+                  <Text fontSize="sm" fontWeight="semibold" color="gray.600">
+                    Original Prompt
+                  </Text>
+                  <Show when={isExpanded()}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleToggleExpand}
+                    >
+                      Show less
+                    </Button>
+                  </Show>
+                </HStack>
+              </Box>
 
               <Box
+                ref={contentRef}
                 class={css({
                   lineClamp: isExpanded() ? "unset" : 7,
                   overflow: "hidden",
@@ -69,41 +117,20 @@ export function SessionHeader(props: SessionHeaderProps) {
                 <MarkdownRenderer>{props.prompt}</MarkdownRenderer>
               </Box>
 
-              <Button
-                variant="plain"
-                size="sm"
-                onClick={handleToggleExpand}
-                class={css({ alignSelf: "flex-start" })}
-              >
-                {isExpanded() ? "Show less" : "Show more"}
-              </Button>
+              <Show when={isClamped() || isExpanded()}>
+                <Button
+                  variant="plain"
+                  size="sm"
+                  onClick={handleToggleExpand}
+                  class={css({ alignSelf: "flex-start" })}
+                >
+                  {isExpanded() ? "Show less" : "Show more"}
+                </Button>
+              </Show>
             </Stack>
           </Box>
         </Stack>
       </Stack>
-
-      <Show when={isExpanded()}>
-        <Box
-          class={css({
-            position: "sticky",
-            bottom: "1rem",
-            display: "flex",
-            justifyContent: "flex-start",
-            marginLeft: "-10rem",
-            zIndex: 10,
-          })}
-        >
-          <Button
-            variant="solid"
-            onClick={handleToggleExpand}
-            class={css({
-              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-            })}
-          >
-            Collapse Prompt
-          </Button>
-        </Box>
-      </Show>
     </>
   );
 }

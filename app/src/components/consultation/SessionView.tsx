@@ -1,6 +1,7 @@
 import { For, Show, Suspense } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Stack } from "styled-system/jsx";
+import { css } from "styled-system/css";
 
 import * as Tabs from "~/components/ui/tabs";
 import { Text } from "~/components/ui/text";
@@ -64,7 +65,10 @@ export function SessionView() {
 
                 <For each={session().rounds}>
                   {(round, index) => (
-                    <Tabs.Content value={`round-${index()}`}>
+                    <Tabs.Content
+                      value={`round-${index()}`}
+                      class={css({ overflow: "visible !important" })}
+                    >
                       <RoundContent
                         round={round}
                         isLastRound={index() === session().rounds.length - 1}
