@@ -1,9 +1,6 @@
-import { Meta, Title } from "@solidjs/meta";
 import { useNavigate, useParams } from "@solidjs/router";
 import { createEffect } from "solid-js";
 import { Container } from "styled-system/jsx";
-
-import { SITE_NAME } from "~/lib/site-meta";
 
 import { ConsultationProvider } from "~/components/consultation/consultation-context";
 import { SessionView } from "~/components/consultation/SessionView";
@@ -37,9 +34,6 @@ export default function SessionRoute() {
 
   return (
     <Container py="4" maxW="4xl">
-      <Title>{SITE_NAME}</Title>
-      <Meta name="description" content={SITE_NAME} />
-
       <ConsultationProvider
         sessionId={sessionId()}
         setSessionId={handleSetSessionId}

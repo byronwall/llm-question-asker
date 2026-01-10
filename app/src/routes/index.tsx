@@ -1,10 +1,10 @@
-import { Meta, Title } from "@solidjs/meta";
 import { useNavigate } from "@solidjs/router";
 import { createEffect } from "solid-js";
 import { Container, Stack } from "styled-system/jsx";
 
-import { SITE_NAME } from "~/lib/site-meta";
+import { SITE_DESCRIPTION, SITE_URL } from "~/lib/site-meta";
 
+import { PageMeta } from "~/components/PageMeta";
 import { ConsultationProvider } from "~/components/consultation/consultation-context";
 import { WelcomeCard } from "~/components/consultation/WelcomeCard";
 import { SessionList } from "~/components/consultation/SessionList";
@@ -28,8 +28,7 @@ export default function HomeRoute() {
 
   return (
     <Container py="4" maxW="4xl">
-      <Title>{SITE_NAME}</Title>
-      <Meta name="description" content={SITE_NAME} />
+      <PageMeta description={SITE_DESCRIPTION} url={SITE_URL} />
 
       <ConsultationProvider
         sessionId={undefined}

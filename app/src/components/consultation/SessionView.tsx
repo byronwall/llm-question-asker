@@ -5,6 +5,8 @@ import { css } from "styled-system/css";
 
 import * as Tabs from "~/components/ui/tabs";
 import { Text } from "~/components/ui/text";
+import { PageMeta } from "~/components/PageMeta";
+import { SITE_URL } from "~/lib/site-meta";
 
 import { useConsultation } from "./consultation-context";
 import { SessionHeader } from "./SessionHeader";
@@ -40,8 +42,24 @@ export function SessionView() {
       >
         {(session) => {
           console.log("SessionView:Show:when - session loaded", session());
+
+          const pageTitle = () =>
+            session().title || session().prompt.slice(0, 60);
+          const pageDescription = () =>
+            session().description ||
+            session().prompt ||
+            "AI consultation session with guided questions and answers";
+          const pageUrl = () => `${SITE_URL}/session/${session().id}`;
+
           return (
             <Stack gap="8">
+              <PageMeta
+                title={pageTitle()}
+                description={pageDescription()}
+                url={pageUrl()}
+                type="article"
+              />
+
               <SessionHeader
                 prompt={session().prompt}
                 title={session().title}

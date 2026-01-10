@@ -1,8 +1,12 @@
 # Immediate work to get this tested
 
+## Question Types
+
+- add a new question type to help identify the user's overall goal -- so not just questions to get context, but really try to determine their overall goal - reveal the question type as a small chip in the UI when showing the questions
+
 ## Input & User Guidance
 
-- Should add a box to the input which is the "goal" and a separate one for the context - add a new question type for this - reveal the question type as a small chip in the UI when showing the questions
+- Should add a box to the input which is the "goal" and a separate one for the context -
 - For additional rounds, provide a text box that allows user to guide the questions and any changes to expected output
 - Allow user to highlight text and add commentary - incorporate that into questions and next output - call it `feedback`
 - Allow user to request questions in a specific direction? Maybe offer a "suggestions for next questions" as part of the structured response... then show a drop down menu where the user can choose, submit, and get new questions in a certain way
