@@ -1,7 +1,9 @@
 import { Show } from "solid-js";
+import { HStack } from "styled-system/jsx";
 import { Button } from "~/components/ui/button";
 import { MarkdownRenderer } from "~/components/MarkdownRenderer";
 import { useConsultation } from "./consultation-context";
+import { NewSessionFromFocusDialog } from "./NewSessionFromFocusDialog";
 
 type ResultCardProps = {
   result: string;
@@ -16,13 +18,15 @@ export function ResultCard(props: ResultCardProps) {
       <MarkdownRenderer>{props.result}</MarkdownRenderer>
 
       <Show when={props.isLastRound}>
-        <Button
-          mt="6"
-          onClick={ctx.handleCreateNextRound}
-          loading={ctx.isSubmitting()}
-        >
-          Refine with Another Round
-        </Button>
+        <HStack mt="6" gap="3" flexWrap="wrap">
+          <Button
+            onClick={ctx.handleCreateNextRound}
+            loading={ctx.isSubmitting()}
+          >
+            Refine with Another Round
+          </Button>
+          <NewSessionFromFocusDialog />
+        </HStack>
       </Show>
     </>
   );

@@ -1,10 +1,11 @@
 import { action, query } from "@solidjs/router";
 
-import type { Answer } from "~/lib/domain";
+import type { Answer, Session } from "~/lib/domain";
 
 import {
   generateQuestions,
   generateResult,
+  generateFocusedPrompt,
   generateTitleAndDescription,
 } from "./ai";
 import { db } from "./db";
@@ -14,6 +15,53 @@ export type CreateSessionResult = { jobId: string };
 export type SubmitAnswersResult = { jobId: string };
 export type CreateNextRoundResult = { jobId: string };
 export type AddMoreQuestionsResult = { jobId: string };
+export type GenerateFocusedPromptResult = { prompt: string };
+
+function formatSessionHistory(session: Session) {
+  const segments: string[] = [];
+
+  if (session.title) {
+    segments.push(`Title: ${session.title}`);
+  }
+
+  if (session.description) {
+    segments.push(`Description: ${session.description}`);
+  }
+
+  segments.push(`Original prompt: ${session.prompt}`);
+
+  session.rounds.forEach((round, index) => {
+    const qaPairs = round.questions
+      .map((q) => {
+        const answer = round.answers.find((a) => a.questionId === q.id);
+        if (!answer) return `Q: ${q.text}\nA: (Skipped)`;
+
+        const selectedTexts = q.options
+          .filter((opt) => answer.selectedOptionIds.includes(opt.id))
+          .map((opt) => opt.text);
+
+        if (answer.customInput) {
+          selectedTexts.push(`Custom: ${answer.customInput}`);
+        }
+
+        const answerText =
+          selectedTexts.length > 0 ? selectedTexts.join(", ") : "(Skipped)";
+
+        return `Q: ${q.text}\nA: ${answerText}`;
+      })
+      .join("\n\n");
+
+    const roundSegments = [`Round ${index + 1}:`, qaPairs];
+
+    if (round.result) {
+      roundSegments.push(`Recommendation:\n${round.result}`);
+    }
+
+    segments.push(roundSegments.join("\n"));
+  });
+
+  return segments.join("\n\n");
+}
 
 export const createSession = action(async (prompt: string) => {
   "use server";
@@ -28,6 +76,29 @@ export const createSession = action(async (prompt: string) => {
 
   return { jobId: job.id } as CreateSessionResult;
 }, "session:create");
+
+export const generateSessionPrompt = action(
+  async (input: { sessionId: string; focus: string }) => {
+    "use server";
+    console.log("actions:generateSessionPrompt", {
+      sessionId: input.sessionId,
+      focusLength: input.focus.length,
+    });
+
+    const database = db();
+    const session = await database.getSession(input.sessionId);
+    if (!session) throw new Error("Session not found");
+
+    const focus = input.focus.trim();
+    if (!focus) throw new Error("Focus is required");
+
+    const history = formatSessionHistory(session);
+    const prompt = await generateFocusedPrompt(session.prompt, history, focus);
+
+    return { prompt } as GenerateFocusedPromptResult;
+  },
+  "session:generateSessionPrompt"
+);
 
 async function processCreateSession(jobId: string, prompt: string) {
   const jobs = jobsDb();

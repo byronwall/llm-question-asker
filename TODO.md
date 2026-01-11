@@ -34,6 +34,9 @@
 
 ## UI Improvement
 
+- Take the copy as markdown button and move it into a dropdown menu with a `...` trigger icon
+  - THat menu should also include the "create new session" button
+
 ## Infrastructure & Session Logic
 
 - Consider how to handle network requests as the user starts more than 1 session -- question answering did not force the UI to update when going somewhere else -- starting a new session included a redirect even though I left the original page

@@ -155,3 +155,38 @@ export async function generateTitleAndDescription(
 
   return object;
 }
+
+export async function generateFocusedPrompt(
+  prompt: string,
+  history: string,
+  focus: string
+): Promise<string> {
+  requireApiKey();
+
+  const { text } = await generateText({
+    model: getModel(),
+    prompt: [
+      "You are creating a new consultation prompt based on an existing session.",
+      "Summarize the main details of the session and emphasize the user's focus.",
+      "Include more context than a short summary, but avoid excessive length.",
+      "",
+      "Existing prompt:",
+      `"${prompt}"`,
+      "",
+      "Session details:",
+      history,
+      "",
+      "User focus:",
+      `"${focus}"`,
+      "",
+      "Write the new prompt as plain text (no markdown, no bullet lists).",
+      "Format it as:",
+      "1) A short 'Main request' line at the top.",
+      "2) Two short paragraphs that summarize the original context and mention some answered questions.",
+      "Keep it concise but more detailed than the previous version.",
+      "Return only the prompt text.",
+    ].join("\n"),
+  });
+
+  return text.trim();
+}

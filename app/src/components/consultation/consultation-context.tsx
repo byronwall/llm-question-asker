@@ -5,8 +5,9 @@ import {
   type JSX,
   createSignal,
   createMemo,
+  batch,
 } from "solid-js";
-import { createStore } from "solid-js/store";
+import { createStore, type SetStoreFunction } from "solid-js/store";
 import {
   createAsync,
   revalidate,
@@ -39,6 +40,7 @@ export type ConsultationController = {
   currentRound: Accessor<Round | null>;
   isRoundComplete: Accessor<boolean>;
   handleCreateSession: () => Promise<void>;
+  handleCreateSessionFromPrompt: (value: string) => Promise<void>;
   handleToggleOption: (questionId: string, optionId: string) => void;
   handleCustomInput: (questionId: string, value: string) => void;
   handleSubmitRound: () => Promise<void>;
@@ -46,6 +48,8 @@ export type ConsultationController = {
   handleAddMoreQuestions: () => Promise<void>;
   handleDeleteQuestion: (questionId: string) => Promise<void>;
   setSessionId: (id: string) => void;
+  focusDialogState: FocusDialogState;
+  setFocusDialogState: SetStoreFunction<FocusDialogState>;
 };
 
 const Ctx = createContext<ConsultationController>();
@@ -54,6 +58,15 @@ type ConsultationProviderProps = {
   sessionId: string | undefined;
   setSessionId: (id: string) => void;
   children: JSX.Element;
+};
+
+type FocusDialogState = {
+  isOpen: boolean;
+  focusInput: string;
+  generatedPrompt: string | null;
+  generationError: string | null;
+  isGenerating: boolean;
+  closeIntent: boolean;
 };
 
 const POLL_INTERVAL_MS = 1500;
@@ -71,6 +84,15 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
   const [isSubmitting, setIsSubmitting] = createSignal(false);
   const [answers, setAnswers] = createStore<Answer[]>([]);
   const [pendingJobId, setPendingJobId] = createSignal<string | null>(null);
+  const [focusDialogState, setFocusDialogState] =
+    createStore<FocusDialogState>({
+      isOpen: false,
+      focusInput: "",
+      generatedPrompt: null,
+      generationError: null,
+      isGenerating: false,
+      closeIntent: false,
+    });
 
   const sessionData = createAsync(() => {
     console.log("ConsultationProvider:createAsync:fetching", {
@@ -177,11 +199,14 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     poll();
   };
 
-  const handleCreateSession = async () => {
-    console.log("ConsultationProvider:handleCreateSession");
-    const currentPrompt = prompt().trim();
+  const startCreateSession = async (nextPrompt: string) => {
+    const currentPrompt = nextPrompt.trim();
     if (!currentPrompt) return;
 
+    batch(() => {
+      setPrompt(currentPrompt);
+      setFocusDialogState("closeIntent", false);
+    });
     setIsSubmitting(true);
     try {
       const result = await runCreateSession(currentPrompt);
@@ -218,6 +243,16 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
         duration: 5000,
       });
     }
+  };
+
+  const handleCreateSession = async () => {
+    console.log("ConsultationProvider:handleCreateSession");
+    await startCreateSession(prompt());
+  };
+
+  const handleCreateSessionFromPrompt = async (value: string) => {
+    console.log("ConsultationProvider:handleCreateSessionFromPrompt");
+    await startCreateSession(value);
   };
 
   const handleToggleOption = (questionId: string, optionId: string) => {
@@ -416,6 +451,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     currentRound,
     isRoundComplete,
     handleCreateSession,
+    handleCreateSessionFromPrompt,
     handleToggleOption,
     handleCustomInput,
     handleSubmitRound,
@@ -423,6 +459,8 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     handleAddMoreQuestions,
     handleDeleteQuestion,
     setSessionId: props.setSessionId,
+    focusDialogState,
+    setFocusDialogState,
   }));
 
   return <Ctx.Provider value={value()}>{props.children}</Ctx.Provider>;
