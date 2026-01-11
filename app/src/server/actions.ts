@@ -428,6 +428,9 @@ export const deleteQuestion = action(
 
 export const listSessions = query(async () => {
   "use server";
+  console.log("actions:listSessions");
   const database = db();
-  return await database.listSessions();
+  const sessions = await database.listSessions();
+  console.log("actions:listSessions:result", { count: sessions.length });
+  return sessions;
 }, "session:list");

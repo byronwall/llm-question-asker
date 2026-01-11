@@ -14,11 +14,15 @@ export function JobsIndicator() {
 
   const count = () => jobsCtx.activeJobCount();
   const hasActive = () => jobsCtx.hasActiveJobs();
+  const handleOpenChange = (details: { open: boolean }) => {
+    console.log("JobsIndicator:openChange", { open: details.open });
+    jobsCtx.setJobsPanelOpen(details.open);
+  };
 
   return (
     <Popover.Root
       open={jobsCtx.isJobsPanelOpen()}
-      onOpenChange={(details) => jobsCtx.setJobsPanelOpen(details.open)}
+      onOpenChange={handleOpenChange}
     >
       <Popover.Trigger
         class={css({

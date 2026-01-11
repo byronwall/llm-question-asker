@@ -1,4 +1,4 @@
-import { For, Show, Suspense } from "solid-js";
+import { For, Show, Suspense, createEffect } from "solid-js";
 import { A } from "@solidjs/router";
 import { createAsync } from "@solidjs/router";
 import { Title, Meta } from "@solidjs/meta";
@@ -14,12 +14,25 @@ export default function JobsPage() {
   const jobsCtx = useJobs();
   const allJobs = createAsync(() => getAllJobs());
 
+  console.log("JobsPage:render", { isClient: typeof window !== "undefined" });
+
   const activeJobs = () =>
     (allJobs() ?? []).filter((j) => isActiveStage(j.stage));
   const completedJobs = () =>
     (allJobs() ?? []).filter((j) => j.stage === "completed");
   const failedJobs = () =>
     (allJobs() ?? []).filter((j) => j.stage === "failed");
+
+  createEffect(() => {
+    const jobs = allJobs();
+    if (!jobs) return;
+    console.log("JobsPage:data", {
+      total: jobs.length,
+      active: activeJobs().length,
+      completed: completedJobs().length,
+      failed: failedJobs().length,
+    });
+  });
 
   return (
     <>

@@ -13,7 +13,8 @@ export default function SessionRoute() {
   console.log("SessionRoute:render", {
     isClient: typeof window !== "undefined",
     sessionId: sessionId(),
-    params,
+    hasSessionId: !!sessionId(),
+    paramKeys: Object.keys(params),
   });
 
   createEffect(() => {

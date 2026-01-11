@@ -44,11 +44,11 @@ export function QuestionCard(props: QuestionCardProps) {
   };
 
   const handleCustomInputChange = (value: string) => {
-    console.log(
-      "QuestionCard:handleCustomInputChange",
-      props.question.id,
-      value
-    );
+    console.log("QuestionCard:handleCustomInputChange", {
+      questionId: props.question.id,
+      valueLength: value.length,
+      hasValue: value.trim().length > 0,
+    });
     ctx.handleCustomInput(props.question.id, value);
   };
 

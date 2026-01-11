@@ -16,10 +16,26 @@ export function SessionView() {
   const ctx = useConsultation();
   const navigate = useNavigate();
 
-  console.log("SessionView:render", {
-    sessionData: ctx.sessionData(),
-    hasSession: !!ctx.sessionData(),
-  });
+  const sessionSummary = () => {
+    const session = ctx.sessionData();
+    if (!session) {
+      return {
+        hasSession: false,
+        sessionId: null,
+        roundCount: 0,
+      };
+    }
+
+    return {
+      hasSession: true,
+      sessionId: session.id,
+      roundCount: session.rounds.length,
+      hasTitle: !!session.title,
+      promptLength: session.prompt.length,
+    };
+  };
+
+  console.log("SessionView:render", sessionSummary());
 
   const handleBackClick = () => {
     console.log("SessionView:handleBackClick");
@@ -41,7 +57,13 @@ export function SessionView() {
         })()}
       >
         {(session) => {
-          console.log("SessionView:Show:when - session loaded", session());
+          console.log("SessionView:Show:when - session loaded", {
+            sessionId: session().id,
+            roundCount: session().rounds.length,
+            hasTitle: !!session().title,
+            hasDescription: !!session().description,
+            promptLength: session().prompt.length,
+          });
 
           const pageTitle = () =>
             session().title || session().prompt.slice(0, 60);
@@ -67,9 +89,7 @@ export function SessionView() {
                 onBackClick={handleBackClick}
               />
 
-              <Tabs.Root
-                defaultValue={`round-${session().rounds.length - 1}`}
-              >
+              <Tabs.Root defaultValue={`round-${session().rounds.length - 1}`}>
                 <Tabs.List>
                   <For each={session().rounds}>
                     {(_round, index) => (
