@@ -1,10 +1,14 @@
 import { For, Show, createSignal } from "solid-js";
-import { Stack, Box, HStack } from "styled-system/jsx";
+import { Stack, Box, HStack, VStack } from "styled-system/jsx";
 import { css } from "styled-system/css";
 import * as Card from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
+import { Spinner } from "~/components/ui/spinner";
 import type { Round } from "~/lib/domain";
 import { useConsultation } from "./consultation-context";
+import { useJobs } from "~/components/jobs/job-context";
+import { JobStageIndicator } from "~/components/jobs/JobStageIndicator";
+import { JOB_TYPE_LABELS } from "~/lib/job-types";
 import { QuestionCard } from "./QuestionCard";
 import { ResultCard } from "./ResultCard";
 
@@ -15,8 +19,25 @@ type RoundContentProps = {
 
 export function RoundContent(props: RoundContentProps) {
   const ctx = useConsultation();
+  const jobsCtx = useJobs();
   const [questionsExpanded, setQuestionsExpanded] = createSignal(false);
   const [copyButtonText, setCopyButtonText] = createSignal("Copy as Markdown");
+
+  const pendingJob = () => {
+    const jobId = ctx.pendingJobId();
+    if (!jobId) return null;
+    return jobsCtx.getJobById(jobId);
+  };
+
+  const isGeneratingResult = () => {
+    const job = pendingJob();
+    return job?.type === "submit_answers";
+  };
+
+  const isAddingQuestions = () => {
+    const job = pendingJob();
+    return job?.type === "add_more_questions";
+  };
 
   const getAnswer = (questionId: string) => {
     // If the round has submitted answers, use those
@@ -80,7 +101,11 @@ export function RoundContent(props: RoundContentProps) {
           <HStack justifyContent="space-between" alignItems="center">
             <Card.Title>Questions</Card.Title>
             <Show when={hasResult() && questionsExpanded()}>
-              <Button variant="outline" size="sm" onClick={handleToggleQuestions}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleToggleQuestions}
+              >
                 Hide Questions
               </Button>
             </Show>
@@ -98,15 +123,16 @@ export function RoundContent(props: RoundContentProps) {
                   mb: 2,
                 })}
               >
-                Tip: You can select multiple options for each question. Questions
-                can be skipped if you prefer not to answer them.
+                Tip: You can select multiple options for each question.
+                Questions can be skipped if you prefer not to answer them.
               </Box>
             </Show>
 
             <Box position="relative">
               <Box
                 class={css({
-                  maxHeight: hasResult() && !questionsExpanded() ? "100px" : "none",
+                  maxHeight:
+                    hasResult() && !questionsExpanded() ? "100px" : "none",
                   overflow: "hidden",
                   position: "relative",
                 })}
@@ -139,7 +165,8 @@ export function RoundContent(props: RoundContentProps) {
                     left: 0,
                     right: 0,
                     height: "100px",
-                    background: "linear-gradient(to bottom, transparent, white)",
+                    background:
+                      "linear-gradient(to bottom, transparent, white)",
                     pointerEvents: "none",
                   })}
                 />
@@ -150,6 +177,33 @@ export function RoundContent(props: RoundContentProps) {
               <Button variant="outline" onClick={handleToggleQuestions}>
                 {questionsExpanded() ? "Hide Questions" : "Show All Questions"}
               </Button>
+            </Show>
+
+            <Show when={isAddingQuestions() && pendingJob()}>
+              {(job) => (
+                <Box
+                  class={css({
+                    p: "4",
+                    rounded: "lg",
+                    bg: "blue.50",
+                    border: "1px solid",
+                    borderColor: "blue.200",
+                  })}
+                >
+                  <VStack gap="3" alignItems="stretch">
+                    <HStack gap="2">
+                      <Spinner size="sm" />
+                      <Box fontWeight="medium" color="blue.700">
+                        {JOB_TYPE_LABELS[job().type]}
+                      </Box>
+                    </HStack>
+                    <JobStageIndicator currentStage={job().stage} />
+                    <Box fontSize="sm" color="blue.600">
+                      Generating additional questions...
+                    </Box>
+                  </VStack>
+                </Box>
+              )}
             </Show>
 
             <Show when={!props.round.result && props.isLastRound}>
@@ -173,6 +227,78 @@ export function RoundContent(props: RoundContentProps) {
           </Stack>
         </Card.Body>
       </Card.Root>
+
+      <Show when={isGeneratingResult() && pendingJob()}>
+        {(job) => (
+          <Card.Root>
+            <Card.Header>
+              <Card.Title>
+                <HStack gap="2">
+                  <Spinner size="sm" />
+                  <span>{JOB_TYPE_LABELS[job().type]}</span>
+                </HStack>
+              </Card.Title>
+            </Card.Header>
+            <Card.Body>
+              <VStack gap="4" alignItems="stretch">
+                <JobStageIndicator currentStage={job().stage} />
+                <Box
+                  class={css({
+                    p: "4",
+                    bg: "gray.50",
+                    rounded: "md",
+                    minH: "200px",
+                  })}
+                >
+                  <VStack
+                    gap="3"
+                    alignItems="center"
+                    justifyContent="center"
+                    h="full"
+                  >
+                    <Box
+                      class={css({
+                        w: "full",
+                        h: "4",
+                        bg: "gray.200",
+                        rounded: "md",
+                        animation: "pulse 2s infinite",
+                      })}
+                    />
+                    <Box
+                      class={css({
+                        w: "80%",
+                        h: "4",
+                        bg: "gray.200",
+                        rounded: "md",
+                        animation: "pulse 2s infinite",
+                      })}
+                    />
+                    <Box
+                      class={css({
+                        w: "60%",
+                        h: "4",
+                        bg: "gray.200",
+                        rounded: "md",
+                        animation: "pulse 2s infinite",
+                      })}
+                    />
+                  </VStack>
+                </Box>
+                <Box
+                  class={css({
+                    fontSize: "sm",
+                    color: "gray.500",
+                    textAlign: "center",
+                  })}
+                >
+                  Generating your personalized analysis and recommendations...
+                </Box>
+              </VStack>
+            </Card.Body>
+          </Card.Root>
+        )}
+      </Show>
 
       <Show when={props.round.result}>
         <Card.Root>

@@ -1,188 +1,272 @@
 import { action, query } from "@solidjs/router";
+
 import type { Answer } from "~/lib/domain";
-import { db } from "./db";
+
 import {
   generateQuestions,
   generateResult,
   generateTitleAndDescription,
 } from "./ai";
+import { db } from "./db";
+import { jobsDb } from "./jobs-db";
+
+export type CreateSessionResult = { jobId: string };
+export type SubmitAnswersResult = { jobId: string };
+export type CreateNextRoundResult = { jobId: string };
+export type AddMoreQuestionsResult = { jobId: string };
 
 export const createSession = action(async (prompt: string) => {
   "use server";
-  console.log("🔧 [SERVER] createSession action called", {
-    prompt,
-    promptLength: prompt.length,
+  console.log("actions:createSession", { promptLength: prompt.length });
+
+  const jobs = jobsDb();
+  const job = await jobs.createJob("create_session", null);
+
+  processCreateSession(job.id, prompt).catch((err) => {
+    console.error("actions:createSession:background error", err);
   });
 
-  const database = await db();
+  return { jobId: job.id } as CreateSessionResult;
+}, "session:create");
 
-  console.log("💾 [SERVER] Creating session in database");
-  const session = await database.createSession(prompt);
-  console.log("✅ [SERVER] Session created:", { sessionId: session.id });
+async function processCreateSession(jobId: string, prompt: string) {
+  const jobs = jobsDb();
+  const database = db();
 
-  // Generate title and description
   try {
-    console.log("🤖 [SERVER] Generating title and description");
-    const { title, description } = await generateTitleAndDescription(prompt);
-    console.log("✅ [SERVER] Title and description generated:", {
-      title,
-      description,
-    });
-    await database.updateSession(session.id, { title, description });
-    session.title = title;
-    session.description = description;
-  } catch (err) {
-    console.error("❌ [SERVER] Failed to generate title/description:", err);
-  }
+    console.log("processCreateSession:extract", { jobId });
+    await jobs.updateJobStage(jobId, "extract");
+    const session = await database.createSession(prompt);
+    await jobs.updateJob(jobId, { resultSessionId: session.id });
 
-  // Generate initial questions in background (or await if fast enough)
-  try {
-    console.log("🤖 [SERVER] Generating questions for prompt");
+    console.log("processCreateSession:analyze", { jobId });
+    await jobs.updateJobStage(jobId, "analyze");
+    let title: string | undefined;
+    let description: string | undefined;
+    try {
+      const meta = await generateTitleAndDescription(prompt);
+      title = meta.title;
+      description = meta.description;
+    } catch (err) {
+      console.error("processCreateSession:analyze failed", err);
+    }
 
+    console.log("processCreateSession:generate", { jobId });
+    await jobs.updateJobStage(jobId, "generate");
     const questions = await generateQuestions(prompt);
-    console.log("✅ [SERVER] Questions generated:", {
-      count: questions.length,
-    });
 
-    const round: any = {
+    console.log("processCreateSession:finalize", { jobId });
+    await jobs.updateJobStage(jobId, "finalize");
+    const round = {
       id: crypto.randomUUID(),
       questions,
       answers: [],
       result: null,
       createdAt: new Date().toISOString(),
     };
-    console.log("📦 [SERVER] Created round object:", { roundId: round.id });
+    await database.updateSession(session.id, {
+      title,
+      description,
+      rounds: [round],
+    });
 
-    console.log("💾 [SERVER] Updating session with round");
-    await database.updateSession(session.id, { rounds: [round] });
-    session.rounds = [round];
-    console.log("✅ [SERVER] Session updated with round");
+    console.log("processCreateSession:completed", {
+      jobId,
+      sessionId: session.id,
+    });
+    await jobs.completeJob(jobId, session.id);
   } catch (err) {
-    console.error("❌ [SERVER] Failed to generate questions:", err);
+    console.error("processCreateSession:failed", { jobId, error: err });
+    await jobs.failJob(jobId, String(err));
   }
-
-  console.log("🎉 [SERVER] Returning session:", {
-    sessionId: session.id,
-    roundsCount: session.rounds.length,
-  });
-  return session;
-}, "session:create");
+}
 
 export const submitAnswers = action(
   async (input: { sessionId: string; answers: Answer[] }) => {
     "use server";
-    const database = await db();
-    const session = await database.getSession(input.sessionId);
+    console.log("actions:submitAnswers", { sessionId: input.sessionId });
+
+    const jobs = jobsDb();
+    const job = await jobs.createJob("submit_answers", input.sessionId);
+
+    processSubmitAnswers(job.id, input.sessionId, input.answers).catch(
+      (err) => {
+        console.error("actions:submitAnswers:background error", err);
+      }
+    );
+
+    return { jobId: job.id } as SubmitAnswersResult;
+  },
+  "session:submitAnswers"
+);
+
+async function processSubmitAnswers(
+  jobId: string,
+  sessionId: string,
+  answers: Answer[]
+) {
+  const jobs = jobsDb();
+  const database = db();
+
+  try {
+    console.log("processSubmitAnswers:extract", { jobId });
+    await jobs.updateJobStage(jobId, "extract");
+    const session = await database.getSession(sessionId);
     if (!session) throw new Error("Session not found");
 
     const rounds = [...session.rounds];
     const currentRoundIndex = rounds.length - 1;
     if (currentRoundIndex < 0) throw new Error("No rounds found");
     const currentRound = rounds[currentRoundIndex];
+    currentRound.answers = answers;
+    await database.updateSession(sessionId, { rounds });
 
-    currentRound.answers = input.answers;
+    console.log("processSubmitAnswers:analyze", { jobId });
+    await jobs.updateJobStage(jobId, "analyze");
+    let history = "";
+    for (const r of rounds) {
+      const rAnswers = r === currentRound ? answers : r.answers;
+      const qaPairs = r.questions
+        .map((q) => {
+          const answer = rAnswers.find((a) => a.questionId === q.id);
+          if (!answer) return `Q: ${q.text}\nA: (Skipped)`;
 
-    // Update DB with answers first
-    await database.updateSession(input.sessionId, { rounds });
+          const selectedTexts = q.options
+            .filter((opt) => answer.selectedOptionIds.includes(opt.id))
+            .map((opt) => opt.text);
 
-    // Generate result based on all history
-    try {
-      // Construct history string from all rounds
-      let history = "";
-      for (const r of rounds) {
-        const rAnswers = r === currentRound ? input.answers : r.answers; // Use latest answers for current round
-        const qaPairs = r.questions
-          .map((q) => {
-            const answer = rAnswers.find((a) => a.questionId === q.id);
-            if (!answer) return `Q: ${q.text}\nA: (Skipped)`;
+          if (answer.customInput) {
+            selectedTexts.push(`Custom: ${answer.customInput}`);
+          }
 
-            const selectedTexts = q.options
-              .filter((opt) => answer.selectedOptionIds.includes(opt.id))
-              .map((opt) => opt.text);
-
-            if (answer.customInput) {
-              selectedTexts.push(`Custom: ${answer.customInput}`);
-            }
-
-            return `Q: ${q.text}\nA: ${selectedTexts.join(", ")}`;
-          })
-          .join("\n\n");
-        history += `Round ${r.id}:\n${qaPairs}\n\n`;
-      }
-
-      const result = await generateResult(session.prompt, history);
-      currentRound.result = result;
-
-      await database.updateSession(input.sessionId, { rounds });
-      return { success: true, result };
-    } catch (err) {
-      console.error("Failed to generate result:", err);
-      throw err;
+          return `Q: ${q.text}\nA: ${selectedTexts.join(", ")}`;
+        })
+        .join("\n\n");
+      history += `Round ${r.id}:\n${qaPairs}\n\n`;
     }
-  },
-  "session:submitAnswers"
-);
+
+    console.log("processSubmitAnswers:generate", { jobId });
+    await jobs.updateJobStage(jobId, "generate");
+    const result = await generateResult(session.prompt, history);
+
+    console.log("processSubmitAnswers:finalize", { jobId });
+    await jobs.updateJobStage(jobId, "finalize");
+    currentRound.result = result;
+    await database.updateSession(sessionId, { rounds });
+
+    console.log("processSubmitAnswers:completed", { jobId });
+    await jobs.completeJob(jobId, sessionId);
+  } catch (err) {
+    console.error("processSubmitAnswers:failed", { jobId, error: err });
+    await jobs.failJob(jobId, String(err));
+  }
+}
 
 export const createNextRound = action(async (sessionId: string) => {
   "use server";
-  const database = await db();
-  const session = await database.getSession(sessionId);
-  if (!session) throw new Error("Session not found");
+  console.log("actions:createNextRound", { sessionId });
 
-  // Construct history from all rounds
-  let history = "";
-  for (const r of session.rounds) {
-    const qaPairs = r.questions
-      .map((q) => {
-        const answer = r.answers.find((a) => a.questionId === q.id);
-        if (!answer) return `Q: ${q.text}\nA: (Skipped)`;
+  const jobs = jobsDb();
+  const job = await jobs.createJob("create_next_round", sessionId);
 
-        const selectedTexts = q.options
-          .filter((opt) => answer.selectedOptionIds.includes(opt.id))
-          .map((opt) => opt.text);
+  processCreateNextRound(job.id, sessionId).catch((err) => {
+    console.error("actions:createNextRound:background error", err);
+  });
 
-        if (answer.customInput) {
-          selectedTexts.push(`Custom: ${answer.customInput}`);
-        }
+  return { jobId: job.id } as CreateNextRoundResult;
+}, "session:createNextRound");
 
-        return `Q: ${q.text}\nA: ${selectedTexts.join(", ")}`;
-      })
-      .join("\n\n");
-    history += `Round ${r.id}:\n${qaPairs}\n\n`;
-    if (r.result) {
-      history += `Recommendation:\n${r.result}\n\n`;
-    }
-  }
+async function processCreateNextRound(jobId: string, sessionId: string) {
+  const jobs = jobsDb();
+  const database = db();
 
   try {
+    console.log("processCreateNextRound:extract", { jobId });
+    await jobs.updateJobStage(jobId, "extract");
+    const session = await database.getSession(sessionId);
+    if (!session) throw new Error("Session not found");
+
+    console.log("processCreateNextRound:analyze", { jobId });
+    await jobs.updateJobStage(jobId, "analyze");
+    let history = "";
+    for (const r of session.rounds) {
+      const qaPairs = r.questions
+        .map((q) => {
+          const answer = r.answers.find((a) => a.questionId === q.id);
+          if (!answer) return `Q: ${q.text}\nA: (Skipped)`;
+
+          const selectedTexts = q.options
+            .filter((opt) => answer.selectedOptionIds.includes(opt.id))
+            .map((opt) => opt.text);
+
+          if (answer.customInput) {
+            selectedTexts.push(`Custom: ${answer.customInput}`);
+          }
+
+          return `Q: ${q.text}\nA: ${selectedTexts.join(", ")}`;
+        })
+        .join("\n\n");
+      history += `Round ${r.id}:\n${qaPairs}\n\n`;
+      if (r.result) {
+        history += `Recommendation:\n${r.result}\n\n`;
+      }
+    }
+
+    console.log("processCreateNextRound:generate", { jobId });
+    await jobs.updateJobStage(jobId, "generate");
     const questions = await generateQuestions(session.prompt, history);
-    const round: any = {
+
+    console.log("processCreateNextRound:finalize", { jobId });
+    await jobs.updateJobStage(jobId, "finalize");
+    const round = {
       id: crypto.randomUUID(),
       questions,
       answers: [],
       result: null,
       createdAt: new Date().toISOString(),
     };
-
     const rounds = [...session.rounds, round];
     await database.updateSession(sessionId, { rounds });
-    return round;
+
+    console.log("processCreateNextRound:completed", { jobId });
+    await jobs.completeJob(jobId, sessionId);
   } catch (err) {
-    console.error("Failed to generate next round:", err);
-    throw err;
+    console.error("processCreateNextRound:failed", { jobId, error: err });
+    await jobs.failJob(jobId, String(err));
   }
-}, "session:createNextRound");
+}
 
 export const addMoreQuestions = action(
   async (input: { sessionId: string; answers: Answer[] }) => {
     "use server";
-    console.log("🔧 [SERVER] addMoreQuestions action called", {
-      sessionId: input.sessionId,
-      answersCount: input.answers.length,
-    });
+    console.log("actions:addMoreQuestions", { sessionId: input.sessionId });
 
-    const database = await db();
-    const session = await database.getSession(input.sessionId);
+    const jobs = jobsDb();
+    const job = await jobs.createJob("add_more_questions", input.sessionId);
+
+    processAddMoreQuestions(job.id, input.sessionId, input.answers).catch(
+      (err) => {
+        console.error("actions:addMoreQuestions:background error", err);
+      }
+    );
+
+    return { jobId: job.id } as AddMoreQuestionsResult;
+  },
+  "session:addMoreQuestions"
+);
+
+async function processAddMoreQuestions(
+  jobId: string,
+  sessionId: string,
+  answers: Answer[]
+) {
+  const jobs = jobsDb();
+  const database = db();
+
+  try {
+    console.log("processAddMoreQuestions:extract", { jobId });
+    await jobs.updateJobStage(jobId, "extract");
+    const session = await database.getSession(sessionId);
     if (!session) throw new Error("Session not found");
 
     const rounds = [...session.rounds];
@@ -190,10 +274,11 @@ export const addMoreQuestions = action(
     if (currentRoundIndex < 0) throw new Error("No rounds found");
     const currentRound = rounds[currentRoundIndex];
 
-    // Build history from all current round questions (answered or not)
+    console.log("processAddMoreQuestions:analyze", { jobId });
+    await jobs.updateJobStage(jobId, "analyze");
     const qaPairs = currentRound.questions
       .map((q) => {
-        const answer = input.answers.find((a) => a.questionId === q.id);
+        const answer = answers.find((a) => a.questionId === q.id);
         if (!answer || answer.selectedOptionIds.length === 0) {
           return `Q: ${q.text}\nA: (Not yet answered)`;
         }
@@ -212,53 +297,41 @@ export const addMoreQuestions = action(
 
     const history = `Existing questions in this round (do NOT duplicate or rephrase these - generate completely new, orthogonal questions that explore different aspects):\n\n${qaPairs}\n\nGenerate additional questions that cover NEW topics, perspectives, or considerations not already addressed by the existing questions.`;
 
-    try {
-      console.log("🤖 [SERVER] Generating additional questions");
-      const newQuestions = await generateQuestions(session.prompt, history);
-      console.log("✅ [SERVER] New questions generated:", {
-        count: newQuestions.length,
-      });
+    console.log("processAddMoreQuestions:generate", { jobId });
+    await jobs.updateJobStage(jobId, "generate");
+    const newQuestions = await generateQuestions(session.prompt, history);
 
-      // Append new questions to current round
-      currentRound.questions = [...currentRound.questions, ...newQuestions];
+    console.log("processAddMoreQuestions:finalize", { jobId });
+    await jobs.updateJobStage(jobId, "finalize");
+    currentRound.questions = [...currentRound.questions, ...newQuestions];
+    currentRound.answers = answers;
+    await database.updateSession(sessionId, { rounds });
 
-      // Save current answers (partial)
-      currentRound.answers = input.answers;
-
-      await database.updateSession(input.sessionId, { rounds });
-      console.log("✅ [SERVER] Session updated with additional questions");
-
-      return { success: true, newQuestionsCount: newQuestions.length };
-    } catch (err) {
-      console.error("❌ [SERVER] Failed to generate additional questions:", err);
-      throw err;
-    }
-  },
-  "session:addMoreQuestions"
-);
+    console.log("processAddMoreQuestions:completed", { jobId });
+    await jobs.completeJob(jobId, sessionId);
+  } catch (err) {
+    console.error("processAddMoreQuestions:failed", { jobId, error: err });
+    await jobs.failJob(jobId, String(err));
+  }
+}
 
 export const getSession = query(async (sessionId: string) => {
   "use server";
-  console.log("🔍 [SERVER] getSession called", { sessionId });
-  const database = await db();
+  console.log("actions:getSession", { sessionId });
+  const database = db();
   const result = await database.getSession(sessionId);
-  console.log("🔍 [SERVER] getSession result", {
-    sessionId,
-    hasResult: !!result,
-    result: result ? { id: result.id, roundsCount: result.rounds?.length } : null,
-  });
   return result;
 }, "session:get");
 
 export const deleteQuestion = action(
   async (input: { sessionId: string; questionId: string }) => {
     "use server";
-    console.log("🔧 [SERVER] deleteQuestion action called", {
+    console.log("actions:deleteQuestion", {
       sessionId: input.sessionId,
       questionId: input.questionId,
     });
 
-    const database = await db();
+    const database = db();
     const session = await database.getSession(input.sessionId);
     if (!session) throw new Error("Session not found");
 
@@ -267,18 +340,15 @@ export const deleteQuestion = action(
     if (currentRoundIndex < 0) throw new Error("No rounds found");
     const currentRound = rounds[currentRoundIndex];
 
-    // Remove the question from the current round
     currentRound.questions = currentRound.questions.filter(
       (q) => q.id !== input.questionId
     );
-
-    // Also remove any answer associated with this question
     currentRound.answers = currentRound.answers.filter(
       (a) => a.questionId !== input.questionId
     );
 
     await database.updateSession(input.sessionId, { rounds });
-    console.log("✅ [SERVER] Question deleted successfully");
+    console.log("actions:deleteQuestion completed");
 
     return { success: true };
   },
@@ -287,6 +357,6 @@ export const deleteQuestion = action(
 
 export const listSessions = query(async () => {
   "use server";
-  const database = await db();
+  const database = db();
   return await database.listSessions();
 }, "session:list");

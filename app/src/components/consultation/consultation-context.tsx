@@ -6,9 +6,16 @@ import {
   createSignal,
   createMemo,
 } from "solid-js";
-import { createStore, type Store } from "solid-js/store";
-import { createAsync, useAction } from "@solidjs/router";
+import { createStore } from "solid-js/store";
+import {
+  createAsync,
+  revalidate,
+  useAction,
+  useNavigate,
+} from "@solidjs/router";
+
 import type { Answer, Round, Session } from "~/lib/domain";
+import type { Job } from "~/lib/job-types";
 import {
   addMoreQuestions,
   createNextRound,
@@ -17,20 +24,20 @@ import {
   getSession,
   submitAnswers,
 } from "~/server/actions";
+import { getJob } from "~/server/job-actions";
+import { toaster } from "~/components/ui/toast";
+import { JOB_TYPE_LABELS } from "~/lib/job-types";
+import { useJobs } from "~/components/jobs/job-context";
 
 export type ConsultationController = {
-  // State
   prompt: Accessor<string>;
   setPrompt: (value: string) => void;
-  answers: Store<Answer[]>;
+  answers: Answer[];
   isSubmitting: Accessor<boolean>;
-
-  // Session data
+  pendingJobId: Accessor<string | null>;
   sessionData: Accessor<Session | null | undefined>;
   currentRound: Accessor<Round | null>;
   isRoundComplete: Accessor<boolean>;
-
-  // Actions
   handleCreateSession: () => Promise<void>;
   handleToggleOption: (questionId: string, optionId: string) => void;
   handleCustomInput: (questionId: string, value: string) => void;
@@ -38,8 +45,6 @@ export type ConsultationController = {
   handleCreateNextRound: () => Promise<void>;
   handleAddMoreQuestions: () => Promise<void>;
   handleDeleteQuestion: (questionId: string) => Promise<void>;
-
-  // URL params
   setSessionId: (id: string) => void;
 };
 
@@ -51,15 +56,21 @@ type ConsultationProviderProps = {
   children: JSX.Element;
 };
 
+const POLL_INTERVAL_MS = 1500;
+
 export function ConsultationProvider(props: ConsultationProviderProps) {
   console.log("ConsultationProvider:init", {
     sessionId: props.sessionId,
     hasSessionId: !!props.sessionId,
   });
 
+  const navigate = useNavigate();
+  const jobsCtx = useJobs();
+
   const [prompt, setPrompt] = createSignal("");
   const [isSubmitting, setIsSubmitting] = createSignal(false);
   const [answers, setAnswers] = createStore<Answer[]>([]);
+  const [pendingJobId, setPendingJobId] = createSignal<string | null>(null);
 
   const sessionData = createAsync(() => {
     console.log("ConsultationProvider:createAsync:fetching", {
@@ -72,13 +83,14 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
         console.log("ConsultationProvider:createAsync:result", {
           sessionId: props.sessionId,
           hasResult: !!result,
-          result,
         });
         return result;
       });
     }
 
-    console.log("ConsultationProvider:createAsync:noSessionId - returning null");
+    console.log(
+      "ConsultationProvider:createAsync:noSessionId - returning null"
+    );
     return Promise.resolve(null);
   });
 
@@ -100,6 +112,71 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     return round.answers.length === round.questions.length;
   };
 
+  const pollForJobCompletion = (
+    jobId: string,
+    onComplete: (job: Job) => void
+  ) => {
+    console.log("ConsultationProvider:pollForJobCompletion:start", { jobId });
+
+    const poll = async () => {
+      try {
+        const job = await getJob(jobId);
+        console.log("ConsultationProvider:pollForJobCompletion:poll", {
+          jobId,
+          stage: job?.stage,
+        });
+
+        if (!job) {
+          console.error(
+            "ConsultationProvider:pollForJobCompletion:jobNotFound"
+          );
+          setIsSubmitting(false);
+          setPendingJobId(null);
+          await jobsCtx.refreshJobs();
+          return;
+        }
+
+        if (job.stage === "completed") {
+          console.log("ConsultationProvider:pollForJobCompletion:completed", {
+            jobId,
+            resultSessionId: job.resultSessionId,
+          });
+          setIsSubmitting(false);
+          setPendingJobId(null);
+          await jobsCtx.refreshJobs();
+          onComplete(job);
+          return;
+        }
+
+        if (job.stage === "failed") {
+          console.error("ConsultationProvider:pollForJobCompletion:failed", {
+            jobId,
+            error: job.error,
+          });
+          toaster.dismiss();
+          toaster.create({
+            title: "Operation failed",
+            description: job.error ?? "An error occurred",
+            type: "error",
+            duration: 5000,
+          });
+          setIsSubmitting(false);
+          setPendingJobId(null);
+          await jobsCtx.refreshJobs();
+          return;
+        }
+
+        setTimeout(poll, POLL_INTERVAL_MS);
+      } catch (err) {
+        console.error("ConsultationProvider:pollForJobCompletion:error", err);
+        setIsSubmitting(false);
+        setPendingJobId(null);
+      }
+    };
+
+    poll();
+  };
+
   const handleCreateSession = async () => {
     console.log("ConsultationProvider:handleCreateSession");
     const currentPrompt = prompt().trim();
@@ -107,17 +184,48 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
 
     setIsSubmitting(true);
     try {
-      const session = await runCreateSession(currentPrompt);
-      props.setSessionId(session.id);
+      const result = await runCreateSession(currentPrompt);
+      console.log("ConsultationProvider:handleCreateSession:jobCreated", {
+        jobId: result.jobId,
+      });
+
+      setPendingJobId(result.jobId);
+      jobsCtx.addJobToWatch(result.jobId);
+
+      pollForJobCompletion(result.jobId, (job) => {
+        if (job.resultSessionId) {
+          toaster.create({
+            title: "Session ready!",
+            description: "Your questions are ready to answer",
+            type: "success",
+            duration: 3000,
+          });
+          console.log(
+            "ConsultationProvider:navigating to session",
+            job.resultSessionId
+          );
+          navigate(`/session/${job.resultSessionId}`);
+        }
+      });
     } catch (error) {
       console.error("ConsultationProvider:handleCreateSession:error", error);
-    } finally {
       setIsSubmitting(false);
+      setPendingJobId(null);
+      toaster.create({
+        title: "Failed to start",
+        description: String(error),
+        type: "error",
+        duration: 5000,
+      });
     }
   };
 
   const handleToggleOption = (questionId: string, optionId: string) => {
-    console.log("ConsultationProvider:handleToggleOption", questionId, optionId);
+    console.log(
+      "ConsultationProvider:handleToggleOption",
+      questionId,
+      optionId
+    );
 
     const existing = answers.find((a) => a.questionId === questionId);
     if (!existing) {
@@ -164,12 +272,37 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
 
     setIsSubmitting(true);
     try {
-      await runSubmitAnswers({ sessionId: session.id, answers: [...answers] });
-      setAnswers([]); // Reset for next round if any
+      const result = await runSubmitAnswers({
+        sessionId: session.id,
+        answers: [...answers],
+      });
+      console.log("ConsultationProvider:handleSubmitRound:jobCreated", {
+        jobId: result.jobId,
+      });
+
+      setPendingJobId(result.jobId);
+      jobsCtx.addJobToWatch(result.jobId);
+
+      pollForJobCompletion(result.jobId, () => {
+        toaster.create({
+          title: "Result ready!",
+          description: "Your personalized recommendation is ready",
+          type: "success",
+          duration: 3000,
+        });
+        setAnswers([]);
+        revalidate(getSession.key);
+      });
     } catch (error) {
       console.error("ConsultationProvider:handleSubmitRound:error", error);
-    } finally {
       setIsSubmitting(false);
+      setPendingJobId(null);
+      toaster.create({
+        title: "Failed to generate result",
+        description: String(error),
+        type: "error",
+        duration: 5000,
+      });
     }
   };
 
@@ -180,11 +313,33 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
 
     setIsSubmitting(true);
     try {
-      await runCreateNextRound(session.id);
+      const result = await runCreateNextRound(session.id);
+      console.log("ConsultationProvider:handleCreateNextRound:jobCreated", {
+        jobId: result.jobId,
+      });
+
+      setPendingJobId(result.jobId);
+      jobsCtx.addJobToWatch(result.jobId);
+
+      pollForJobCompletion(result.jobId, () => {
+        toaster.create({
+          title: "Next round ready!",
+          description: "New questions have been generated",
+          type: "success",
+          duration: 3000,
+        });
+        revalidate(getSession.key);
+      });
     } catch (error) {
       console.error("ConsultationProvider:handleCreateNextRound:error", error);
-    } finally {
       setIsSubmitting(false);
+      setPendingJobId(null);
+      toaster.create({
+        title: "Failed to create next round",
+        description: String(error),
+        type: "error",
+        duration: 5000,
+      });
     }
   };
 
@@ -195,12 +350,36 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
 
     setIsSubmitting(true);
     try {
-      await runAddMoreQuestions({ sessionId: session.id, answers: [...answers] });
-      // Don't reset answers - user may continue answering the new questions
+      const result = await runAddMoreQuestions({
+        sessionId: session.id,
+        answers: [...answers],
+      });
+      console.log("ConsultationProvider:handleAddMoreQuestions:jobCreated", {
+        jobId: result.jobId,
+      });
+
+      setPendingJobId(result.jobId);
+      jobsCtx.addJobToWatch(result.jobId);
+
+      pollForJobCompletion(result.jobId, () => {
+        toaster.create({
+          title: "More questions added!",
+          description: "Additional questions have been generated",
+          type: "success",
+          duration: 3000,
+        });
+        revalidate(getSession.key);
+      });
     } catch (error) {
       console.error("ConsultationProvider:handleAddMoreQuestions:error", error);
-    } finally {
       setIsSubmitting(false);
+      setPendingJobId(null);
+      toaster.create({
+        title: "Failed to add questions",
+        description: String(error),
+        type: "error",
+        duration: 5000,
+      });
     }
   };
 
@@ -212,10 +391,16 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     setIsSubmitting(true);
     try {
       await runDeleteQuestion({ sessionId: session.id, questionId });
-      // Also remove the answer from local state
       setAnswers(answers.filter((a) => a.questionId !== questionId));
+      revalidate(getSession.key);
     } catch (error) {
       console.error("ConsultationProvider:handleDeleteQuestion:error", error);
+      toaster.create({
+        title: "Failed to delete question",
+        description: String(error),
+        type: "error",
+        duration: 5000,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -226,6 +411,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     setPrompt,
     answers,
     isSubmitting,
+    pendingJobId,
     sessionData,
     currentRound,
     isRoundComplete,

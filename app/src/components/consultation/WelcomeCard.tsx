@@ -1,14 +1,25 @@
+import { Show } from "solid-js";
 import { css } from "styled-system/css";
-import { Stack, VStack } from "styled-system/jsx";
+import { Stack, VStack, HStack, Box } from "styled-system/jsx";
 import { Button } from "~/components/ui/button";
 import { Heading } from "~/components/ui/heading";
 import { Text } from "~/components/ui/text";
 import { Textarea } from "~/components/ui/textarea";
+import { Spinner } from "~/components/ui/spinner";
 import { SITE_DESCRIPTION, SITE_NAME } from "~/lib/site-meta";
 import { useConsultation } from "./consultation-context";
+import { useJobs } from "~/components/jobs/job-context";
+import { JobStageIndicator } from "~/components/jobs/JobStageIndicator";
 
 export function WelcomeCard() {
   const ctx = useConsultation();
+  const jobsCtx = useJobs();
+
+  const pendingJob = () => {
+    const jobId = ctx.pendingJobId();
+    if (!jobId) return null;
+    return jobsCtx.getJobById(jobId);
+  };
 
   return (
     <Stack gap="6">
@@ -31,6 +42,7 @@ export function WelcomeCard() {
             rows={4}
             value={ctx.prompt()}
             onInput={(e) => ctx.setPrompt(e.currentTarget.value)}
+            disabled={ctx.isSubmitting()}
           />
         </VStack>
 
@@ -41,6 +53,33 @@ export function WelcomeCard() {
         >
           Start Consultation
         </Button>
+
+        <Show when={ctx.isSubmitting() && pendingJob()}>
+          {(job) => (
+            <Box
+              class={css({
+                p: "4",
+                rounded: "lg",
+                bg: "blue.50",
+                border: "1px solid",
+                borderColor: "blue.200",
+              })}
+            >
+              <VStack gap="3" alignItems="stretch">
+                <HStack gap="2">
+                  <Spinner size="sm" />
+                  <Text fontWeight="medium" color="blue.700">
+                    Creating your consultation...
+                  </Text>
+                </HStack>
+                <JobStageIndicator currentStage={job().stage} />
+                <Text fontSize="sm" color="blue.600">
+                  This usually takes 30s-2min. You'll be redirected when ready.
+                </Text>
+              </VStack>
+            </Box>
+          )}
+        </Show>
       </Stack>
     </Stack>
   );

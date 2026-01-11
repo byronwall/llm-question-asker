@@ -1,5 +1,18 @@
 # Immediate work to get this tested
 
+## Dev related
+
+- Add console logs to all major actions, routes, and other spots
+- Improve logs to avoid having too much data in them (session one dumps large object)
+
+## Job Tracking
+
+- Really need to show a timer for how long a job has been running
+- Need to redirect to a new session immediately
+- Need to show a question skeleton or response skeleton immediately when a job is running
+- Visuals on the job popover are not great -- too many borders
+- Not sure how useful the jobs page is
+
 ## Branding & SEO
 
 - Need to pick a better name for the site

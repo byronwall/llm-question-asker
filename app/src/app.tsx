@@ -4,6 +4,11 @@ import { FileRoutes } from "@solidjs/start/router";
 import { Suspense } from "solid-js";
 import { css } from "styled-system/css";
 import { Box } from "styled-system/jsx";
+
+import { JobProvider } from "~/components/jobs/job-context";
+import { JobsHeader } from "~/components/jobs/JobsHeader";
+import { Toaster } from "~/components/ui/toast";
+
 import "./index.css";
 
 export default function App() {
@@ -12,9 +17,13 @@ export default function App() {
     <Router
       root={(props) => (
         <MetaProvider>
-          <Box class={css({ minH: "dvh" })}>
-            <Suspense>{props.children}</Suspense>
-          </Box>
+          <JobProvider>
+            <Box class={css({ minH: "dvh" })}>
+              <JobsHeader />
+              <Suspense>{props.children}</Suspense>
+            </Box>
+            <Toaster />
+          </JobProvider>
         </MetaProvider>
       )}
     >
