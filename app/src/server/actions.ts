@@ -15,7 +15,7 @@ import {
 import { db } from "./db";
 import { jobsDb } from "./jobs-db";
 
-export type CreateSessionResult = { jobId: string };
+export type CreateSessionResult = { jobId: string; sessionId: string };
 export type SubmitAnswersResult = { jobId: string };
 export type CreateNextRoundResult = { jobId: string };
 export type AddMoreQuestionsResult = { jobId: string };
@@ -84,14 +84,18 @@ export const createSession = action(async (prompt: string) => {
   "use server";
   console.log("actions:createSession", { promptLength: prompt.length });
 
-  const jobs = jobsDb();
-  const job = await jobs.createJob("create_session", null);
+  const database = db();
+  const session = await database.createSession(prompt);
 
-  processCreateSession(job.id, prompt).catch((err) => {
+  const jobs = jobsDb();
+  const job = await jobs.createJob("create_session", session.id);
+  await jobs.updateJob(job.id, { resultSessionId: session.id });
+
+  processCreateSession(job.id, session.id).catch((err) => {
     console.error("actions:createSession:background error", err);
   });
 
-  return { jobId: job.id } as CreateSessionResult;
+  return { jobId: job.id, sessionId: session.id } as CreateSessionResult;
 }, "session:create");
 
 export const generateSessionPrompt = action(
@@ -117,22 +121,22 @@ export const generateSessionPrompt = action(
   "session:generateSessionPrompt"
 );
 
-async function processCreateSession(jobId: string, prompt: string) {
+async function processCreateSession(jobId: string, sessionId: string) {
   const jobs = jobsDb();
   const database = db();
 
   try {
     console.log("processCreateSession:extract", { jobId });
     await jobs.updateJobStage(jobId, "extract");
-    const session = await database.createSession(prompt);
-    await jobs.updateJob(jobId, { resultSessionId: session.id });
+    const session = await database.getSession(sessionId);
+    if (!session) throw new Error("Session not found");
 
     console.log("processCreateSession:analyze", { jobId });
     await jobs.updateJobStage(jobId, "analyze");
     let title: string | undefined;
     let description: string | undefined;
     try {
-      const meta = await generateTitleAndDescription(prompt);
+      const meta = await generateTitleAndDescription(session.prompt);
       title = meta.title;
       description = meta.description;
     } catch (err) {
@@ -141,7 +145,7 @@ async function processCreateSession(jobId: string, prompt: string) {
 
     console.log("processCreateSession:generate", { jobId });
     await jobs.updateJobStage(jobId, "generate");
-    const questions = await generateQuestions(prompt);
+    const questions = await generateQuestions(session.prompt);
 
     console.log("processCreateSession:finalize", { jobId });
     await jobs.updateJobStage(jobId, "finalize");
@@ -265,11 +269,29 @@ export const createNextRound = action(
     const jobs = jobsDb();
     const job = await jobs.createJob("create_next_round", input.sessionId);
 
-    processCreateNextRound(job.id, input.sessionId, input.guidance).catch(
-      (err) => {
-        console.error("actions:createNextRound:background error", err);
-      }
-    );
+    const database = db();
+    const session = await database.getSession(input.sessionId);
+    if (!session) throw new Error("Session not found");
+    const roundId = crypto.randomUUID();
+    const round = {
+      id: roundId,
+      questions: [],
+      answers: [],
+      result: null,
+      createdAt: new Date().toISOString(),
+    };
+    await database.updateSession(input.sessionId, {
+      rounds: [...session.rounds, round],
+    });
+
+    processCreateNextRound(
+      job.id,
+      input.sessionId,
+      roundId,
+      input.guidance
+    ).catch((err) => {
+      console.error("actions:createNextRound:background error", err);
+    });
 
     return { jobId: job.id } as CreateNextRoundResult;
   },
@@ -279,6 +301,7 @@ export const createNextRound = action(
 async function processCreateNextRound(
   jobId: string,
   sessionId: string,
+  roundId: string,
   guidance?: string
 ) {
   const jobs = jobsDb();
@@ -294,6 +317,7 @@ async function processCreateNextRound(
     await jobs.updateJobStage(jobId, "analyze");
     let history = "";
     for (const r of session.rounds) {
+      if (r.id === roundId) continue;
       const qaPairs = r.questions.map((q) => {
         const answer = r.answers.find((a) => a.questionId === q.id);
         if (!answer) return `Q: ${q.text}\nA: (Skipped)`;
@@ -330,14 +354,25 @@ async function processCreateNextRound(
 
     console.log("processCreateNextRound:finalize", { jobId });
     await jobs.updateJobStage(jobId, "finalize");
-    const round = {
-      id: crypto.randomUUID(),
+    const rounds = [...session.rounds];
+    let roundIndex = rounds.findIndex((round) => round.id === roundId);
+    if (roundIndex < 0) {
+      console.log("processCreateNextRound:missingRound", { jobId, roundId });
+      rounds.push({
+        id: roundId,
+        questions: [],
+        answers: [],
+        result: null,
+        createdAt: new Date().toISOString(),
+      });
+      roundIndex = rounds.length - 1;
+    }
+    rounds[roundIndex] = {
+      ...rounds[roundIndex],
       questions,
       answers: [],
       result: null,
-      createdAt: new Date().toISOString(),
     };
-    const rounds = [...session.rounds, round];
     await database.updateSession(sessionId, { rounds });
 
     console.log("processCreateNextRound:completed", { jobId });

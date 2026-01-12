@@ -1,4 +1,4 @@
-import { Show, createMemo } from "solid-js";
+import { Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import { TriangleAlertIcon, XIcon } from "lucide-solid";
 import { css } from "styled-system/css";
 import { VStack, HStack, Box } from "styled-system/jsx";
@@ -20,16 +20,37 @@ type Props = {
   onCancel?: (jobId: string) => void;
 };
 
+const formatElapsed = (ms: number) => {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(
+      seconds
+    ).padStart(2, "0")}`;
+  }
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+};
+
 export function JobCard(props: Props) {
   const label = () => JOB_TYPE_LABELS[props.job.type];
   const etaBand = () => JOB_ETA_BANDS[props.job.type];
   const progress = () => getStageProgress(props.job.stage);
+  const [now, setNow] = createSignal(Date.now());
 
   const isStalled = createMemo(() => {
     if (!props.job.stageStartedAt) return false;
     const stageStart = new Date(props.job.stageStartedAt).getTime();
     return Date.now() - stageStart > STALL_THRESHOLD_MS;
   });
+
+  const elapsed = createMemo(() => {
+    const startTime = new Date(props.job.createdAt).getTime();
+    return now() - startTime;
+  });
+  const elapsedLabel = createMemo(() => formatElapsed(elapsed()));
 
   const isFailed = () => props.job.stage === "failed";
   const isPending = () => props.job.stage === "pending";
@@ -39,14 +60,24 @@ export function JobCard(props: Props) {
     props.onCancel?.(props.job.id);
   };
 
+  onMount(() => {
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    onCleanup(() => {
+      clearInterval(interval);
+    });
+  });
+
   return (
     <Box
       class={css({
         p: "3",
         rounded: "md",
-        border: "1px solid",
-        borderColor: isFailed() ? "red.200" : "gray.200",
+        border: isFailed() ? "1px solid" : "1px solid transparent",
+        borderColor: isFailed() ? "red.200" : "transparent",
         bg: isFailed() ? "red.50" : "white",
+        boxShadow: isFailed() ? "none" : "sm",
       })}
     >
       <VStack gap="2" alignItems="stretch">
@@ -82,9 +113,14 @@ export function JobCard(props: Props) {
             <span class={css({ fontSize: "xs", color: "gray.500" })}>
               {etaBand().label}
             </span>
-            <span class={css({ fontSize: "xs", color: "gray.500" })}>
-              {progress()}%
-            </span>
+            <HStack gap="2">
+              <span class={css({ fontSize: "xs", color: "gray.500" })}>
+                {`Elapsed ${elapsedLabel()}`}
+              </span>
+              <span class={css({ fontSize: "xs", color: "gray.500" })}>
+                {progress()}%
+              </span>
+            </HStack>
           </HStack>
 
           <Show when={isStalled()}>

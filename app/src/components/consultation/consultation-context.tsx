@@ -6,14 +6,11 @@ import {
   createSignal,
   createMemo,
   batch,
+  createEffect,
+  onCleanup,
 } from "solid-js";
 import { createStore, type SetStoreFunction } from "solid-js/store";
-import {
-  createAsync,
-  revalidate,
-  useAction,
-  useNavigate,
-} from "@solidjs/router";
+import { createAsync, revalidate, useAction } from "@solidjs/router";
 
 import type { Answer, Round, Session } from "~/lib/domain";
 import type { Job } from "~/lib/job-types";
@@ -79,8 +76,12 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     hasSessionId: !!props.sessionId,
   });
 
-  const navigate = useNavigate();
   const jobsCtx = useJobs();
+
+  let isMounted = true;
+  onCleanup(() => {
+    isMounted = false;
+  });
 
   const [prompt, setPrompt] = createSignal("");
   const [isSubmitting, setIsSubmitting] = createSignal(false);
@@ -126,6 +127,12 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
   const runAddMoreQuestions = useAction(addMoreQuestions);
   const runDeleteQuestion = useAction(deleteQuestion);
 
+  const sessionActiveJobs = createMemo(() => {
+    if (!props.sessionId) return [];
+    return jobsCtx.jobs().filter((job) => job.sessionId === props.sessionId);
+  });
+  const hasSessionActiveJobs = () => sessionActiveJobs().length > 0;
+
   const currentRound = () => {
     const session = sessionData();
     if (!session || !session.rounds.length) return null;
@@ -145,8 +152,10 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     console.log("ConsultationProvider:pollForJobCompletion:start", { jobId });
 
     const poll = async () => {
+      if (!isMounted) return;
       try {
         const job = await getJob(jobId);
+        if (!isMounted) return;
         console.log("ConsultationProvider:pollForJobCompletion:poll", {
           jobId,
           stage: job?.stage,
@@ -156,6 +165,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
           console.error(
             "ConsultationProvider:pollForJobCompletion:jobNotFound"
           );
+          if (!isMounted) return;
           setIsSubmitting(false);
           setPendingJobId(null);
           await jobsCtx.refreshJobs();
@@ -167,6 +177,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
             jobId,
             resultSessionId: job.resultSessionId,
           });
+          if (!isMounted) return;
           setIsSubmitting(false);
           setPendingJobId(null);
           await jobsCtx.refreshJobs();
@@ -179,6 +190,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
             jobId,
             error: job.error,
           });
+          if (!isMounted) return;
           toaster.dismiss();
           toaster.create({
             title: "Operation failed",
@@ -192,9 +204,12 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
           return;
         }
 
-        setTimeout(poll, POLL_INTERVAL_MS);
+        if (isMounted) {
+          setTimeout(poll, POLL_INTERVAL_MS);
+        }
       } catch (err) {
         console.error("ConsultationProvider:pollForJobCompletion:error", err);
+        if (!isMounted) return;
         setIsSubmitting(false);
         setPendingJobId(null);
       }
@@ -220,6 +235,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
 
       setPendingJobId(result.jobId);
       jobsCtx.addJobToWatch(result.jobId);
+      props.setSessionId(result.sessionId);
 
       pollForJobCompletion(result.jobId, (job) => {
         if (job.resultSessionId) {
@@ -229,11 +245,10 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
             type: "success",
             duration: 3000,
           });
-          console.log(
-            "ConsultationProvider:navigating to session",
-            job.resultSessionId
-          );
-          navigate(`/session/${job.resultSessionId}`);
+          console.log("ConsultationProvider:sessionReady", {
+            sessionId: job.resultSessionId,
+          });
+          revalidate(getSession.key);
         }
       });
     } catch (error) {
@@ -366,6 +381,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
 
       setPendingJobId(result.jobId);
       jobsCtx.addJobToWatch(result.jobId);
+      revalidate(getSession.key);
 
       pollForJobCompletion(result.jobId, () => {
         toaster.create({
@@ -476,6 +492,24 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     focusDialogState,
     setFocusDialogState,
   }));
+
+  createEffect(() => {
+    const hasActive = hasSessionActiveJobs();
+    console.log("ConsultationProvider:sessionJobs:check", {
+      sessionId: props.sessionId,
+      activeCount: sessionActiveJobs().length,
+    });
+    if (!hasActive) return;
+    const interval = setInterval(() => {
+      console.log("ConsultationProvider:sessionJobs:revalidate", {
+        sessionId: props.sessionId,
+      });
+      revalidate(getSession.key);
+    }, POLL_INTERVAL_MS);
+    onCleanup(() => {
+      clearInterval(interval);
+    });
+  });
 
   return <Ctx.Provider value={value()}>{props.children}</Ctx.Provider>;
 }

@@ -29,9 +29,7 @@ export function JobsPanel() {
 
       <Box
         class={css({
-          pt: "2",
-          borderTop: "1px solid",
-          borderColor: "gray.200",
+          pt: "1",
         })}
       >
         <A

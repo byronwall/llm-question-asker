@@ -8,8 +8,8 @@
 - Need to redirect to a new session immediately
 - Need to show a question skeleton or response skeleton immediately when a job is running
 - Visuals on the job popover are not great -- too many borders
-- Not sure how useful the jobs page is
 - `Refine with another round` triggers a job, but really needs to create the new round immediately and show a skeleton loading state until the job is complete
+- Not sure how useful the jobs page is
 
 ## Branding & SEO
 
@@ -36,6 +36,7 @@
 
 - Tables are quite poor on mobile - might switch over to a simple card based displayed (even in Markdown)
 - There is a horizontal overflow on the analysis and recs section since the 2 buttons too wide together -- put in a flex wrap to handle this
+- Main input box on the front page needs to start at 4 lines and then auto expand
 
 ## Infrastructure & Session Logic
 

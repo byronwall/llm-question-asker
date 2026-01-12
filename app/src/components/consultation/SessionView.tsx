@@ -1,4 +1,4 @@
-import { For, Show, Suspense } from "solid-js";
+import { For, Match, Show, Suspense, Switch } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Stack } from "styled-system/jsx";
 import { css } from "styled-system/css";
@@ -9,12 +9,15 @@ import { PageMeta } from "~/components/PageMeta";
 import { SITE_URL } from "~/lib/site-meta";
 
 import { useConsultation } from "./consultation-context";
+import { useJobs } from "~/components/jobs/job-context";
 import { SessionHeader } from "./SessionHeader";
 import { RoundContent } from "./RoundContent";
+import { QuestionsSkeleton } from "./QuestionsSkeleton";
 
 export function SessionView() {
   const ctx = useConsultation();
   const navigate = useNavigate();
+  const jobsCtx = useJobs();
 
   const sessionSummary = () => {
     const session = ctx.sessionData();
@@ -72,6 +75,11 @@ export function SessionView() {
             session().prompt ||
             "AI consultation session with guided questions and answers";
           const pageUrl = () => `${SITE_URL}/session/${session().id}`;
+          const hasRounds = () => session().rounds.length > 0;
+          const activeJob = () =>
+            jobsCtx.jobs().find((job) => job.sessionId === session().id);
+          const isCreatingSession = () =>
+            activeJob()?.type === "create_session";
 
           return (
             <Stack gap="8">
@@ -89,32 +97,48 @@ export function SessionView() {
                 onBackClick={handleBackClick}
               />
 
-              <Tabs.Root defaultValue={`round-${session().rounds.length - 1}`}>
-                <Tabs.List>
+              <Show
+                when={hasRounds()}
+                fallback={
+                  <Switch>
+                    <Match when={isCreatingSession()}>
+                      <QuestionsSkeleton description="Generating your first set of questions..." />
+                    </Match>
+                    <Match when={!isCreatingSession()}>
+                      <Text color="gray.500">No rounds yet.</Text>
+                    </Match>
+                  </Switch>
+                }
+              >
+                <Tabs.Root
+                  defaultValue={`round-${session().rounds.length - 1}`}
+                >
+                  <Tabs.List>
+                    <For each={session().rounds}>
+                      {(_round, index) => (
+                        <Tabs.Trigger value={`round-${index()}`}>
+                          Round {index() + 1}
+                        </Tabs.Trigger>
+                      )}
+                    </For>
+                    <Tabs.Indicator />
+                  </Tabs.List>
+
                   <For each={session().rounds}>
-                    {(_round, index) => (
-                      <Tabs.Trigger value={`round-${index()}`}>
-                        Round {index() + 1}
-                      </Tabs.Trigger>
+                    {(round, index) => (
+                      <Tabs.Content
+                        value={`round-${index()}`}
+                        class={css({ overflow: "visible !important" })}
+                      >
+                        <RoundContent
+                          round={round}
+                          isLastRound={index() === session().rounds.length - 1}
+                        />
+                      </Tabs.Content>
                     )}
                   </For>
-                  <Tabs.Indicator />
-                </Tabs.List>
-
-                <For each={session().rounds}>
-                  {(round, index) => (
-                    <Tabs.Content
-                      value={`round-${index()}`}
-                      class={css({ overflow: "visible !important" })}
-                    >
-                      <RoundContent
-                        round={round}
-                        isLastRound={index() === session().rounds.length - 1}
-                      />
-                    </Tabs.Content>
-                  )}
-                </For>
-              </Tabs.Root>
+                </Tabs.Root>
+              </Show>
             </Stack>
           );
         }}

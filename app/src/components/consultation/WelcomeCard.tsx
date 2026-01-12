@@ -74,7 +74,7 @@ export function WelcomeCard() {
                 </HStack>
                 <JobStageIndicator currentStage={job().stage} />
                 <Text fontSize="sm" color="blue.600">
-                  This usually takes 30s-2min. You'll be redirected when ready.
+                  This usually takes 30s-2min. Loading your session now.
                 </Text>
               </VStack>
             </Box>

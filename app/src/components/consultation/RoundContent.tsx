@@ -24,6 +24,7 @@ import { JOB_TYPE_LABELS } from "~/lib/job-types";
 import { QuestionCard } from "./QuestionCard";
 import { ResultCard } from "./ResultCard";
 import { AdditionalCommentsCard } from "./AdditionalCommentsCard";
+import { QuestionsSkeleton } from "./QuestionsSkeleton";
 
 type RoundContentProps = {
   round: Round;
@@ -38,8 +39,12 @@ export function RoundContent(props: RoundContentProps) {
 
   const pendingJob = () => {
     const jobId = ctx.pendingJobId();
-    if (!jobId) return null;
-    return jobsCtx.getJobById(jobId);
+    if (jobId) {
+      return jobsCtx.getJobById(jobId);
+    }
+    const session = ctx.sessionData();
+    if (!session) return null;
+    return jobsCtx.jobs().find((job) => job.sessionId === session.id) ?? null;
   };
 
   const isGeneratingResult = () => {
@@ -50,6 +55,11 @@ export function RoundContent(props: RoundContentProps) {
   const isAddingQuestions = () => {
     const job = pendingJob();
     return job?.type === "add_more_questions";
+  };
+
+  const isCreatingNextRound = () => {
+    const job = pendingJob();
+    return job?.type === "create_next_round";
   };
 
   const getAnswer = (questionId: string) => {
@@ -100,6 +110,10 @@ export function RoundContent(props: RoundContentProps) {
   };
 
   const hasResult = () => !!props.round.result;
+  const isRoundEmpty = () => props.round.questions.length === 0;
+  const showQuestionSkeleton = () =>
+    props.isLastRound && isRoundEmpty() && isCreatingNextRound();
+  const showAddMoreSkeleton = () => props.isLastRound && isAddingQuestions();
   const additionalCommentsAnswer = () =>
     getAnswer(ADDITIONAL_COMMENTS_QUESTION_ID);
   const additionalCommentsValue = () =>
@@ -173,32 +187,42 @@ export function RoundContent(props: RoundContentProps) {
                   position: "relative",
                 })}
               >
-                <Stack gap="8">
-                  <For each={props.round.questions}>
-                    {(question) => {
-                      const questionId = () => question.id;
-                      const answer = () => getAnswer(questionId());
-                      const disabled = () => !props.isLastRound;
-
-                      return (
-                        <QuestionCard
-                          question={question}
-                          answer={answer()}
-                          disabled={disabled()}
-                          hasResult={hasResult()}
-                        />
-                      );
-                    }}
-                  </For>
-                  <Show when={showAdditionalComments()}>
-                    <AdditionalCommentsCard
-                      label={ADDITIONAL_COMMENTS_QUESTION_LABEL}
-                      value={additionalCommentsValue()}
-                      disabled={!props.isLastRound}
-                      onChange={handleAdditionalCommentsChange}
+                <Show
+                  when={!showQuestionSkeleton()}
+                  fallback={
+                    <QuestionsSkeleton
+                      withCard={false}
+                      description="Generating the next round of questions..."
                     />
-                  </Show>
-                </Stack>
+                  }
+                >
+                  <Stack gap="8">
+                    <For each={props.round.questions}>
+                      {(question) => {
+                        const questionId = () => question.id;
+                        const answer = () => getAnswer(questionId());
+                        const disabled = () => !props.isLastRound;
+
+                        return (
+                          <QuestionCard
+                            question={question}
+                            answer={answer()}
+                            disabled={disabled()}
+                            hasResult={hasResult()}
+                          />
+                        );
+                      }}
+                    </For>
+                    <Show when={showAdditionalComments()}>
+                      <AdditionalCommentsCard
+                        label={ADDITIONAL_COMMENTS_QUESTION_LABEL}
+                        value={additionalCommentsValue()}
+                        disabled={!props.isLastRound}
+                        onChange={handleAdditionalCommentsChange}
+                      />
+                    </Show>
+                  </Stack>
+                </Show>
               </Box>
 
               <Show when={hasResult() && !questionsExpanded()}>
@@ -223,28 +247,30 @@ export function RoundContent(props: RoundContentProps) {
               </Button>
             </Show>
 
-            <Show when={isAddingQuestions() && pendingJob()}>
+            <Show when={showAddMoreSkeleton() && pendingJob()}>
               {(job) => (
                 <Box
                   class={css({
                     p: "4",
                     rounded: "lg",
-                    bg: "blue.50",
+                    bg: "gray.50",
                     border: "1px solid",
-                    borderColor: "blue.200",
+                    borderColor: "gray.200",
                   })}
                 >
                   <VStack gap="3" alignItems="stretch">
                     <HStack gap="2">
                       <Spinner size="sm" />
-                      <Box fontWeight="medium" color="blue.700">
+                      <Box fontWeight="medium" color="gray.700">
                         {JOB_TYPE_LABELS[job().type]}
                       </Box>
                     </HStack>
                     <JobStageIndicator currentStage={job().stage} />
-                    <Box fontSize="sm" color="blue.600">
-                      Generating additional questions...
-                    </Box>
+                    <QuestionsSkeleton
+                      withCard={false}
+                      count={2}
+                      description="Adding more questions..."
+                    />
                   </VStack>
                 </Box>
               )}

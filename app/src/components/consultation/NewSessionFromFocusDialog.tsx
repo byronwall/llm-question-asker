@@ -80,11 +80,7 @@ export function NewSessionFromFocusDialog() {
     if (typeof details?.open !== "boolean") return;
     const nextOpen = !!details.open;
     if (!nextOpen && isCreatingSession()) return;
-    if (
-      !nextOpen &&
-      (isGenerating() || generatedPrompt()) &&
-      !closeIntent()
-    ) {
+    if (!nextOpen && (isGenerating() || generatedPrompt()) && !closeIntent()) {
       console.log(
         "NewSessionFromFocusDialog:openChange:blocked unexpected close"
       );
@@ -264,8 +260,7 @@ export function NewSessionFromFocusDialog() {
                       </HStack>
                       <JobStageIndicator currentStage={job().stage} />
                       <Text fontSize="sm" color="blue.600">
-                        This usually takes 30s-2min. You'll be redirected when
-                        ready.
+                        This usually takes 30s-2min. Opening your session now.
                       </Text>
                     </VStack>
                   </Box>
