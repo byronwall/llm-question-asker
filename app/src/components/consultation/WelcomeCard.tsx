@@ -1,4 +1,4 @@
-import { Show } from "solid-js";
+import { Show, createEffect } from "solid-js";
 import { css } from "styled-system/css";
 import { Stack, VStack, HStack, Box } from "styled-system/jsx";
 import { Button } from "~/components/ui/button";
@@ -14,12 +14,31 @@ import { JobStageIndicator } from "~/components/jobs/JobStageIndicator";
 export function WelcomeCard() {
   const ctx = useConsultation();
   const jobsCtx = useJobs();
+  let promptRef: HTMLTextAreaElement | undefined;
 
   const pendingJob = () => {
     const jobId = ctx.pendingJobId();
     if (!jobId) return null;
     return jobsCtx.getJobById(jobId);
   };
+
+  const resizePrompt = (target?: HTMLTextAreaElement) => {
+    const element = target ?? promptRef;
+    if (!element) return;
+    element.style.height = "auto";
+    element.style.height = `${element.scrollHeight}px`;
+  };
+
+  const handlePromptInput = (event: InputEvent) => {
+    const target = event.currentTarget as HTMLTextAreaElement;
+    ctx.setPrompt(target.value);
+    resizePrompt(target);
+  };
+
+  createEffect(() => {
+    ctx.prompt();
+    resizePrompt();
+  });
 
   return (
     <Stack gap="6">
@@ -41,7 +60,8 @@ export function WelcomeCard() {
             placeholder="e.g., I want to build a mobile app for sustainable grocery shopping..."
             rows={4}
             value={ctx.prompt()}
-            onInput={(e) => ctx.setPrompt(e.currentTarget.value)}
+            onInput={handlePromptInput}
+            ref={promptRef}
             disabled={ctx.isSubmitting()}
           />
         </VStack>

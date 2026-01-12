@@ -17,7 +17,6 @@
 
 ## Input & User Guidance
 
-- For additional rounds, provide a text box that allows user to guide the questions and any changes to expected output
 - Allow user to highlight text and add commentary - incorporate that into questions and next output - call it `feedback`
 
 ## UX Improvement
