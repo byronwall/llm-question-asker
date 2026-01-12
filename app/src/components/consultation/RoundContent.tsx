@@ -1,19 +1,29 @@
 import { For, Show, batch, createSignal } from "solid-js";
 import { Stack, Box, HStack, VStack } from "styled-system/jsx";
 import { css } from "styled-system/css";
-import { CopyIcon, MoreVerticalIcon, PlusIcon, RefreshCwIcon } from "lucide-solid";
+import {
+  CopyIcon,
+  MoreVerticalIcon,
+  PlusIcon,
+  RefreshCwIcon,
+} from "lucide-solid";
 import * as Card from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Spinner } from "~/components/ui/spinner";
 import { IconButton } from "~/components/ui/icon-button";
 import * as Menu from "~/components/ui/menu";
 import type { Round } from "~/lib/domain";
+import {
+  ADDITIONAL_COMMENTS_QUESTION_ID,
+  ADDITIONAL_COMMENTS_QUESTION_LABEL,
+} from "~/lib/consultation-constants";
 import { useConsultation } from "./consultation-context";
 import { useJobs } from "~/components/jobs/job-context";
 import { JobStageIndicator } from "~/components/jobs/JobStageIndicator";
 import { JOB_TYPE_LABELS } from "~/lib/job-types";
 import { QuestionCard } from "./QuestionCard";
 import { ResultCard } from "./ResultCard";
+import { AdditionalCommentsCard } from "./AdditionalCommentsCard";
 
 type RoundContentProps = {
   round: Round;
@@ -90,6 +100,16 @@ export function RoundContent(props: RoundContentProps) {
   };
 
   const hasResult = () => !!props.round.result;
+  const additionalCommentsAnswer = () =>
+    getAnswer(ADDITIONAL_COMMENTS_QUESTION_ID);
+  const additionalCommentsValue = () =>
+    additionalCommentsAnswer()?.customInput ?? "";
+  const showAdditionalComments = () =>
+    props.isLastRound || !!additionalCommentsAnswer();
+  const handleAdditionalCommentsChange = (value: string) => {
+    if (!props.isLastRound) return;
+    ctx.handleCustomInput(ADDITIONAL_COMMENTS_QUESTION_ID, value);
+  };
 
   return (
     <div
@@ -170,6 +190,14 @@ export function RoundContent(props: RoundContentProps) {
                       );
                     }}
                   </For>
+                  <Show when={showAdditionalComments()}>
+                    <AdditionalCommentsCard
+                      label={ADDITIONAL_COMMENTS_QUESTION_LABEL}
+                      value={additionalCommentsValue()}
+                      disabled={!props.isLastRound}
+                      onChange={handleAdditionalCommentsChange}
+                    />
+                  </Show>
                 </Stack>
               </Box>
 

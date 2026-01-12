@@ -1,6 +1,10 @@
 import { action, query } from "@solidjs/router";
 
 import type { Answer, Session } from "~/lib/domain";
+import {
+  ADDITIONAL_COMMENTS_QUESTION_ID,
+  ADDITIONAL_COMMENTS_QUESTION_LABEL,
+} from "~/lib/consultation-constants";
 
 import {
   generateQuestions,
@@ -17,6 +21,17 @@ export type CreateNextRoundResult = { jobId: string };
 export type AddMoreQuestionsResult = { jobId: string };
 export type GenerateFocusedPromptResult = { prompt: string };
 
+function formatAdditionalCommentsAnswer(answers: Answer[]) {
+  const answer = answers.find(
+    (item) => item.questionId === ADDITIONAL_COMMENTS_QUESTION_ID
+  );
+  if (!answer) return null;
+
+  const trimmed = answer.customInput?.trim() ?? "";
+  const answerText = trimmed.length > 0 ? trimmed : "(Skipped)";
+  return `Q: ${ADDITIONAL_COMMENTS_QUESTION_LABEL}\nA: ${answerText}`;
+}
+
 function formatSessionHistory(session: Session) {
   const segments: string[] = [];
 
@@ -31,27 +46,29 @@ function formatSessionHistory(session: Session) {
   segments.push(`Original prompt: ${session.prompt}`);
 
   session.rounds.forEach((round, index) => {
-    const qaPairs = round.questions
-      .map((q) => {
-        const answer = round.answers.find((a) => a.questionId === q.id);
-        if (!answer) return `Q: ${q.text}\nA: (Skipped)`;
+    const qaPairs = round.questions.map((q) => {
+      const answer = round.answers.find((a) => a.questionId === q.id);
+      if (!answer) return `Q: ${q.text}\nA: (Skipped)`;
 
-        const selectedTexts = q.options
-          .filter((opt) => answer.selectedOptionIds.includes(opt.id))
-          .map((opt) => opt.text);
+      const selectedTexts = q.options
+        .filter((opt) => answer.selectedOptionIds.includes(opt.id))
+        .map((opt) => opt.text);
 
-        if (answer.customInput) {
-          selectedTexts.push(`Custom: ${answer.customInput}`);
-        }
+      if (answer.customInput) {
+        selectedTexts.push(`Custom: ${answer.customInput}`);
+      }
 
-        const answerText =
-          selectedTexts.length > 0 ? selectedTexts.join(", ") : "(Skipped)";
+      const answerText =
+        selectedTexts.length > 0 ? selectedTexts.join(", ") : "(Skipped)";
 
-        return `Q: ${q.text}\nA: ${answerText}`;
-      })
-      .join("\n\n");
+      return `Q: ${q.text}\nA: ${answerText}`;
+    });
+    const additionalComments = formatAdditionalCommentsAnswer(round.answers);
+    if (additionalComments) {
+      qaPairs.push(additionalComments);
+    }
 
-    const roundSegments = [`Round ${index + 1}:`, qaPairs];
+    const roundSegments = [`Round ${index + 1}:`, qaPairs.join("\n\n")];
 
     if (round.result) {
       roundSegments.push(`Recommendation:\n${round.result}`);
@@ -197,23 +214,27 @@ async function processSubmitAnswers(
     let history = "";
     for (const r of rounds) {
       const rAnswers = r === currentRound ? answers : r.answers;
-      const qaPairs = r.questions
-        .map((q) => {
-          const answer = rAnswers.find((a) => a.questionId === q.id);
-          if (!answer) return `Q: ${q.text}\nA: (Skipped)`;
+      const qaPairs = r.questions.map((q) => {
+        const answer = rAnswers.find((a) => a.questionId === q.id);
+        if (!answer) return `Q: ${q.text}\nA: (Skipped)`;
 
-          const selectedTexts = q.options
-            .filter((opt) => answer.selectedOptionIds.includes(opt.id))
-            .map((opt) => opt.text);
+        const selectedTexts = q.options
+          .filter((opt) => answer.selectedOptionIds.includes(opt.id))
+          .map((opt) => opt.text);
 
-          if (answer.customInput) {
-            selectedTexts.push(`Custom: ${answer.customInput}`);
-          }
+        if (answer.customInput) {
+          selectedTexts.push(`Custom: ${answer.customInput}`);
+        }
 
-          return `Q: ${q.text}\nA: ${selectedTexts.join(", ")}`;
-        })
-        .join("\n\n");
-      history += `Round ${r.id}:\n${qaPairs}\n\n`;
+        const answerText =
+          selectedTexts.length > 0 ? selectedTexts.join(", ") : "(Skipped)";
+        return `Q: ${q.text}\nA: ${answerText}`;
+      });
+      const additionalComments = formatAdditionalCommentsAnswer(rAnswers);
+      if (additionalComments) {
+        qaPairs.push(additionalComments);
+      }
+      history += `Round ${r.id}:\n${qaPairs.join("\n\n")}\n\n`;
     }
 
     console.log("processSubmitAnswers:generate", { jobId });
@@ -233,21 +254,33 @@ async function processSubmitAnswers(
   }
 }
 
-export const createNextRound = action(async (sessionId: string) => {
-  "use server";
-  console.log("actions:createNextRound", { sessionId });
+export const createNextRound = action(
+  async (input: { sessionId: string; guidance?: string }) => {
+    "use server";
+    console.log("actions:createNextRound", {
+      sessionId: input.sessionId,
+      guidanceLength: input.guidance?.length ?? 0,
+    });
 
-  const jobs = jobsDb();
-  const job = await jobs.createJob("create_next_round", sessionId);
+    const jobs = jobsDb();
+    const job = await jobs.createJob("create_next_round", input.sessionId);
 
-  processCreateNextRound(job.id, sessionId).catch((err) => {
-    console.error("actions:createNextRound:background error", err);
-  });
+    processCreateNextRound(job.id, input.sessionId, input.guidance).catch(
+      (err) => {
+        console.error("actions:createNextRound:background error", err);
+      }
+    );
 
-  return { jobId: job.id } as CreateNextRoundResult;
-}, "session:createNextRound");
+    return { jobId: job.id } as CreateNextRoundResult;
+  },
+  "session:createNextRound"
+);
 
-async function processCreateNextRound(jobId: string, sessionId: string) {
+async function processCreateNextRound(
+  jobId: string,
+  sessionId: string,
+  guidance?: string
+) {
   const jobs = jobsDb();
   const database = db();
 
@@ -261,26 +294,34 @@ async function processCreateNextRound(jobId: string, sessionId: string) {
     await jobs.updateJobStage(jobId, "analyze");
     let history = "";
     for (const r of session.rounds) {
-      const qaPairs = r.questions
-        .map((q) => {
-          const answer = r.answers.find((a) => a.questionId === q.id);
-          if (!answer) return `Q: ${q.text}\nA: (Skipped)`;
+      const qaPairs = r.questions.map((q) => {
+        const answer = r.answers.find((a) => a.questionId === q.id);
+        if (!answer) return `Q: ${q.text}\nA: (Skipped)`;
 
-          const selectedTexts = q.options
-            .filter((opt) => answer.selectedOptionIds.includes(opt.id))
-            .map((opt) => opt.text);
+        const selectedTexts = q.options
+          .filter((opt) => answer.selectedOptionIds.includes(opt.id))
+          .map((opt) => opt.text);
 
-          if (answer.customInput) {
-            selectedTexts.push(`Custom: ${answer.customInput}`);
-          }
+        if (answer.customInput) {
+          selectedTexts.push(`Custom: ${answer.customInput}`);
+        }
 
-          return `Q: ${q.text}\nA: ${selectedTexts.join(", ")}`;
-        })
-        .join("\n\n");
-      history += `Round ${r.id}:\n${qaPairs}\n\n`;
+        const answerText =
+          selectedTexts.length > 0 ? selectedTexts.join(", ") : "(Skipped)";
+        return `Q: ${q.text}\nA: ${answerText}`;
+      });
+      const additionalComments = formatAdditionalCommentsAnswer(r.answers);
+      if (additionalComments) {
+        qaPairs.push(additionalComments);
+      }
+      history += `Round ${r.id}:\n${qaPairs.join("\n\n")}\n\n`;
       if (r.result) {
         history += `Recommendation:\n${r.result}\n\n`;
       }
+    }
+    const trimmedGuidance = guidance?.trim();
+    if (trimmedGuidance) {
+      history += `Additional guidance for the next round:\n${trimmedGuidance}\n\n`;
     }
 
     console.log("processCreateNextRound:generate", { jobId });
@@ -347,26 +388,33 @@ async function processAddMoreQuestions(
 
     console.log("processAddMoreQuestions:analyze", { jobId });
     await jobs.updateJobStage(jobId, "analyze");
-    const qaPairs = currentRound.questions
-      .map((q) => {
-        const answer = answers.find((a) => a.questionId === q.id);
-        if (!answer || answer.selectedOptionIds.length === 0) {
-          return `Q: ${q.text}\nA: (Not yet answered)`;
-        }
+    const qaPairs = currentRound.questions.map((q) => {
+      const answer = answers.find((a) => a.questionId === q.id);
+      const hasSelections = (answer?.selectedOptionIds.length ?? 0) > 0;
+      const hasCustomInput = (answer?.customInput?.trim() ?? "").length > 0;
+      if (!answer || (!hasSelections && !hasCustomInput)) {
+        return `Q: ${q.text}\nA: (Not yet answered)`;
+      }
 
-        const selectedTexts = q.options
-          .filter((opt) => answer.selectedOptionIds.includes(opt.id))
-          .map((opt) => opt.text);
+      const selectedTexts = q.options
+        .filter((opt) => answer.selectedOptionIds.includes(opt.id))
+        .map((opt) => opt.text);
 
-        if (answer.customInput) {
-          selectedTexts.push(`Custom: ${answer.customInput}`);
-        }
+      if (answer.customInput) {
+        selectedTexts.push(`Custom: ${answer.customInput}`);
+      }
 
-        return `Q: ${q.text}\nA: ${selectedTexts.join(", ")}`;
-      })
-      .join("\n\n");
+      const answerText =
+        selectedTexts.length > 0 ? selectedTexts.join(", ") : "(Skipped)";
+      return `Q: ${q.text}\nA: ${answerText}`;
+    });
+    const additionalComments = formatAdditionalCommentsAnswer(answers);
+    if (additionalComments) {
+      qaPairs.push(additionalComments);
+    }
+    const qaPairsText = qaPairs.join("\n\n");
 
-    const history = `Existing questions in this round (do NOT duplicate or rephrase these - generate completely new, orthogonal questions that explore different aspects):\n\n${qaPairs}\n\nGenerate additional questions that cover NEW topics, perspectives, or considerations not already addressed by the existing questions.`;
+    const history = `Existing questions in this round (do NOT duplicate or rephrase these - generate completely new, orthogonal questions that explore different aspects):\n\n${qaPairsText}\n\nGenerate additional questions that cover NEW topics, perspectives, or considerations not already addressed by the existing questions.`;
 
     console.log("processAddMoreQuestions:generate", { jobId });
     await jobs.updateJobStage(jobId, "generate");

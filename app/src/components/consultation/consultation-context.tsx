@@ -34,6 +34,8 @@ export type ConsultationController = {
   prompt: Accessor<string>;
   setPrompt: (value: string) => void;
   answers: Answer[];
+  refineGuidance: Accessor<string>;
+  setRefineGuidance: (value: string) => void;
   isSubmitting: Accessor<boolean>;
   pendingJobId: Accessor<string | null>;
   sessionData: Accessor<Session | null | undefined>;
@@ -83,16 +85,18 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
   const [prompt, setPrompt] = createSignal("");
   const [isSubmitting, setIsSubmitting] = createSignal(false);
   const [answers, setAnswers] = createStore<Answer[]>([]);
+  const [refineGuidance, setRefineGuidance] = createSignal("");
   const [pendingJobId, setPendingJobId] = createSignal<string | null>(null);
-  const [focusDialogState, setFocusDialogState] =
-    createStore<FocusDialogState>({
+  const [focusDialogState, setFocusDialogState] = createStore<FocusDialogState>(
+    {
       isOpen: false,
       focusInput: "",
       generatedPrompt: null,
       generationError: null,
       isGenerating: false,
       closeIntent: false,
-    });
+    }
+  );
 
   const sessionData = createAsync(() => {
     console.log("ConsultationProvider:createAsync:fetching", {
@@ -342,13 +346,20 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
   };
 
   const handleCreateNextRound = async () => {
-    console.log("ConsultationProvider:handleCreateNextRound");
+    const guidance = refineGuidance().trim();
+    console.log("ConsultationProvider:handleCreateNextRound", {
+      hasGuidance: guidance.length > 0,
+      guidanceLength: guidance.length,
+    });
     const session = sessionData();
     if (!session) return;
 
     setIsSubmitting(true);
     try {
-      const result = await runCreateNextRound(session.id);
+      const result = await runCreateNextRound({
+        sessionId: session.id,
+        guidance: guidance || undefined,
+      });
       console.log("ConsultationProvider:handleCreateNextRound:jobCreated", {
         jobId: result.jobId,
       });
@@ -363,6 +374,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
           type: "success",
           duration: 3000,
         });
+        setRefineGuidance("");
         revalidate(getSession.key);
       });
     } catch (error) {
@@ -445,6 +457,8 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     prompt,
     setPrompt,
     answers,
+    refineGuidance,
+    setRefineGuidance,
     isSubmitting,
     pendingJobId,
     sessionData,
