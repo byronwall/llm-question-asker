@@ -1,15 +1,19 @@
 import { Box, HStack, Stack } from "styled-system/jsx";
 import { css } from "styled-system/css";
 import { createSignal, Show, onMount, createEffect } from "solid-js";
-import { CopyIcon, DownloadIcon, MoreVerticalIcon } from "lucide-solid";
+import { CopyIcon, DownloadIcon, MoreVerticalIcon, TrashIcon } from "lucide-solid";
+import { useAction, useNavigate } from "@solidjs/router";
 import { Heading } from "~/components/ui/heading";
 import { Text } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
 import { IconButton } from "~/components/ui/icon-button";
 import * as Menu from "~/components/ui/menu";
 import { MarkdownRenderer } from "../MarkdownRenderer";
+import { ConfirmDialog } from "~/components/ui/confirm-dialog";
+import { deleteSession } from "~/server/actions";
 
 type SessionHeaderProps = {
+  sessionId: string;
   prompt: string;
   title?: string;
   description?: string;
@@ -19,9 +23,12 @@ type SessionHeaderProps = {
 };
 
 export function SessionHeader(props: SessionHeaderProps) {
+  const navigate = useNavigate();
+  const runDeleteSession = useAction(deleteSession);
   const [isExpanded, setIsExpanded] = createSignal(false);
   const [isClamped, setIsClamped] = createSignal(false);
   const [copyButtonText, setCopyButtonText] = createSignal("Copy as Markdown");
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = createSignal(false);
   let contentRef: HTMLDivElement | undefined;
 
   const handleBackClick = () => {
@@ -52,6 +59,16 @@ export function SessionHeader(props: SessionHeaderProps) {
       console.error("Failed to copy:", err);
       setCopyButtonText("Failed to copy");
       setTimeout(() => setCopyButtonText("Copy as Markdown"), 2000);
+    }
+  };
+
+  const handleDelete = async () => {
+    console.log("SessionHeader:handleDelete", props.sessionId);
+    try {
+      await runDeleteSession(props.sessionId);
+      navigate("/");
+    } catch (error) {
+      console.error("SessionHeader:handleDelete:error", error);
     }
   };
 
@@ -113,6 +130,16 @@ export function SessionHeader(props: SessionHeaderProps) {
                     <HStack gap="2" alignItems="center">
                       <DownloadIcon />
                       <Box>Export as Markdown</Box>
+                    </HStack>
+                  </Menu.Item>
+                  <Menu.Separator />
+                  <Menu.Item
+                    value="delete"
+                    onSelect={() => setIsDeleteDialogOpen(true)}
+                  >
+                    <HStack gap="2" alignItems="center">
+                      <TrashIcon class={css({ color: "red.500" })} />
+                      <Box class={css({ color: "red.500" })}>Delete Session</Box>
                     </HStack>
                   </Menu.Item>
                 </Menu.Content>
@@ -195,6 +222,16 @@ export function SessionHeader(props: SessionHeaderProps) {
           </Box>
         </Stack>
       </Stack>
+
+      <ConfirmDialog
+        open={isDeleteDialogOpen()}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="Delete Session"
+        description="Are you sure you want to delete this session? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={handleDelete}
+      />
     </>
   );
 }

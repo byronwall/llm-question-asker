@@ -509,6 +509,17 @@ export const deleteQuestion = action(
   "session:deleteQuestion"
 );
 
+export const deleteSession = action(async (sessionId: string) => {
+  "use server";
+  console.log("actions:deleteSession", { sessionId });
+
+  const database = db();
+  await database.deleteSession(sessionId);
+  console.log("actions:deleteSession completed");
+
+  return { success: true };
+}, "session:delete");
+
 export const listSessions = query(async () => {
   "use server";
   console.log("actions:listSessions");

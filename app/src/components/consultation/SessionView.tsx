@@ -167,6 +167,7 @@ export function SessionView() {
               />
 
               <SessionHeader
+                sessionId={session().id}
                 prompt={session().prompt}
                 title={session().title}
                 description={session().description}

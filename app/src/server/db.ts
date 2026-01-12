@@ -84,6 +84,14 @@ class JsonDb {
     });
   }
 
+  async deleteSession(sessionId: string): Promise<void> {
+    const filePath = this.getSessionFilePath(sessionId);
+    this.writeQueue = this.writeQueue.then(async () => {
+      await unlink(filePath);
+    });
+    await this.writeQueue;
+  }
+
   async listSessions(): Promise<Session[]> {
     const dir = getSessionsDirPath();
     try {
