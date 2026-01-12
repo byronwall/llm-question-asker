@@ -12,7 +12,6 @@
 
 ## Question Types
 
-- There seems to be a bias toward getting 4-5 responses only. In some cases, it seems like there are more options that wanted to be returned by they are not? Review and ensure all responses are returned.
 - Consider a numeric input response for certain kinds of questions
 
 ## Input & User Guidance
@@ -34,8 +33,6 @@
 - Consider how to handle network requests as the user starts more than 1 session -- question answering did not force the UI to update when going somewhere else -- starting a new session included a redirect even though I left the original page
 
 ## Prompt & Response Strategy
-
-- Revise the prompt to avoid offering "I can do next" type responses or askign questions at the end of the response - want that to be controlled by the app and not the LLM's default offering.
 
 ## Did not work
 

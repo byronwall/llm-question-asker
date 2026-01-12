@@ -29,6 +29,7 @@ export function SessionView() {
   const [activeTab, setActiveTab] = createSignal("");
   let tabsRootRef: HTMLDivElement | undefined;
   let lastRoundCount = 0;
+  let lastRoundsKey = "";
 
   const sessionSummary = () => {
     const session = ctx.sessionData();
@@ -62,25 +63,36 @@ export function SessionView() {
     const roundCount = session.rounds.length;
     if (roundCount === 0) return;
 
+    const roundsKey = `${session.id}:${session.rounds
+      .map((round) => round.id)
+      .join("|")}`;
+    if (roundsKey === lastRoundsKey) return;
+
     const nextValue = `round-${roundCount - 1}`;
-    if (lastRoundCount === 0) {
-      setActiveTab(nextValue);
-      lastRoundCount = roundCount;
-      return;
-    }
-
-    if (roundCount > lastRoundCount) {
-      setActiveTab(nextValue);
+    console.log("SessionView:roundsChanged", {
+      sessionId: session.id,
+      roundCount,
+      nextValue,
+      previousRoundsKey: lastRoundsKey,
+      roundsKey,
+    });
+    setActiveTab(nextValue);
+    if (lastRoundsKey && roundCount > lastRoundCount) {
       tabsRootRef?.scrollIntoView({ behavior: "smooth", block: "start" });
-      lastRoundCount = roundCount;
-      return;
     }
-
-    if (roundCount !== lastRoundCount) {
-      setActiveTab(nextValue);
-      lastRoundCount = roundCount;
-    }
+    lastRoundCount = roundCount;
+    lastRoundsKey = roundsKey;
   });
+
+  const handleTabChange: NonNullable<Tabs.RootProps["onValueChange"]> = (
+    details
+  ) => {
+    console.log("SessionView:handleTabChange", {
+      value: details.value,
+      previousValue: activeTab(),
+    });
+    setActiveTab(details.value);
+  };
 
   return (
     <Suspense
@@ -151,7 +163,7 @@ export function SessionView() {
               >
                 <Tabs.Root
                   value={tabValue()}
-                  onValueChange={setActiveTab}
+                  onValueChange={handleTabChange}
                   ref={tabsRootRef}
                 >
                   <Tabs.List>
