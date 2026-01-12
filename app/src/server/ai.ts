@@ -42,8 +42,8 @@ export async function generateQuestions(
                 text: z.string(),
               })
             )
-            .min(2)
-            .max(5),
+            .min(3)
+            .max(8),
         })
       )
       .min(8)
@@ -115,6 +115,12 @@ export async function generateResult(
       "",
       "Based on this information, provide a comprehensive, structured, and helpful response/solution.",
       "Use markdown formatting.",
+      "",
+      "IMPORTANT: Do NOT ask questions at the end of your response.",
+      "Do NOT offer suggestions like 'What would you like me to do next?' or 'I can help you with...'",
+      "Do NOT include meta-commentary about next steps or follow-up options.",
+      "Simply provide your analysis and recommendations, then end your response.",
+      "The application will provide follow-up options to the user separately.",
     ].join("\n"),
   });
 
