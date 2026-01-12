@@ -22,7 +22,6 @@
 
 ## UX Improvement
 
-- the delete icon causes a layout shift as it is shown/hides - make it smaller and move into the header with the question type chip
 - Ensure that question responses are saved as they are entered - do not lose them if the page is refreshed; save the free inputs on blur or enter or debounced changes
 - Need to consistently scroll to the "correct spot" when new data loads -- it's going to cause a layout shift regardless, may as well end up in the right place
 
@@ -30,7 +29,6 @@
 
 - Tables are quite poor on mobile - might switch over to a simple card based displayed (even in Markdown)
 - There is a horizontal overflow on the analysis and recs section since the 2 buttons too wide together -- put in a flex wrap to handle this
-- Main input box on the front page needs to start at 4 lines and then auto expand
 
 ## Infrastructure & Session Logic
 

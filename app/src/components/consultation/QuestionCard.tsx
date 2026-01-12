@@ -67,25 +67,25 @@ export function QuestionCard(props: QuestionCardProps) {
             <Badge size="sm" variant="subtle">
               {getQuestionTypeLabel(props.question.type)}
             </Badge>
+            <Show when={showDeleteButton()} fallback={<Box w="6" h="6" />}>
+              <IconButton
+                variant="plain"
+                size="2xs"
+                onClick={handleDelete}
+                disabled={props.disabled}
+                aria-label="Delete question"
+                css={{
+                  color: "red.600",
+                  opacity: 0.6,
+                  _hover: { opacity: 1, color: "red.700" },
+                }}
+              >
+                <Trash2 size={12} />
+              </IconButton>
+            </Show>
           </HStack>
           <Text fontWeight="bold">{props.question.text}</Text>
         </Stack>
-        <Show when={showDeleteButton()}>
-          <IconButton
-            variant="outline"
-            size="sm"
-            onClick={handleDelete}
-            disabled={props.disabled}
-            aria-label="Delete question"
-            css={{
-              color: "red.600",
-              opacity: 0.6,
-              _hover: { opacity: 1, borderColor: "red.600" },
-            }}
-          >
-            <Trash2 size={16} />
-          </IconButton>
-        </Show>
       </HStack>
       <Stack gap="2">
         <For each={props.question.options}>
