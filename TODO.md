@@ -8,8 +8,6 @@
 
 ## Branding & SEO
 
-- Need to pick a better name for the site
-
 ## Question Types
 
 - Consider a numeric input response for certain kinds of questions
@@ -26,7 +24,6 @@
 ## UI Improvement
 
 - Tables are quite poor on mobile - might switch over to a simple card based displayed (even in Markdown)
-- There is a horizontal overflow on the analysis and recs section since the 2 buttons too wide together -- put in a flex wrap to handle this
 
 ## Infrastructure & Session Logic
 
