@@ -3,6 +3,7 @@ import { Stack, Box, HStack, VStack } from "styled-system/jsx";
 import { css } from "styled-system/css";
 import {
   CopyIcon,
+  DownloadIcon,
   MoreVerticalIcon,
   PlusIcon,
   RefreshCwIcon,
@@ -17,6 +18,12 @@ import {
   ADDITIONAL_COMMENTS_QUESTION_ID,
   ADDITIONAL_COMMENTS_QUESTION_LABEL,
 } from "~/lib/consultation-constants";
+import {
+  exportRoundAsMarkdown,
+  downloadMarkdown,
+  sanitizeFilename,
+} from "~/lib/markdown-export";
+import { SITE_NAME } from "~/lib/site-meta";
 import { useConsultation } from "./consultation-context";
 import { useJobs } from "~/components/jobs/job-context";
 import { JobStageIndicator } from "~/components/jobs/JobStageIndicator";
@@ -36,6 +43,8 @@ export function RoundContent(props: RoundContentProps) {
   const jobsCtx = useJobs();
   const [questionsExpanded, setQuestionsExpanded] = createSignal(false);
   const [copyButtonText, setCopyButtonText] = createSignal("Copy as Markdown");
+  const [copyRoundButtonText, setCopyRoundButtonText] =
+    createSignal("Copy as Markdown");
 
   const pendingJob = () => {
     const jobId = ctx.pendingJobId();
@@ -125,6 +134,44 @@ export function RoundContent(props: RoundContentProps) {
     ctx.handleCustomInput(ADDITIONAL_COMMENTS_QUESTION_ID, value);
   };
 
+  const handleExportRound = () => {
+    console.log("RoundContent:handleExportRound");
+    const session = ctx.sessionData();
+    if (!session) return;
+
+    const roundIndex = session.rounds.findIndex((r) => r.id === props.round.id);
+    const roundNumber = roundIndex >= 0 ? roundIndex + 1 : undefined;
+    const sessionTitle = session.title || `Session ${session.id.slice(0, 8)}`;
+
+    const markdown = exportRoundAsMarkdown(props.round, roundNumber);
+    const filename = sanitizeFilename(
+      `${SITE_NAME} - ${sessionTitle} - Round ${roundNumber ?? "export"}.md`
+    );
+
+    downloadMarkdown(markdown, filename);
+  };
+
+  const handleCopyRound = async () => {
+    console.log("RoundContent:handleCopyRound");
+    const session = ctx.sessionData();
+    if (!session) return;
+
+    const roundIndex = session.rounds.findIndex((r) => r.id === props.round.id);
+    const roundNumber = roundIndex >= 0 ? roundIndex + 1 : undefined;
+
+    const markdown = exportRoundAsMarkdown(props.round, roundNumber);
+
+    try {
+      await navigator.clipboard.writeText(markdown);
+      setCopyRoundButtonText("Copied!");
+      setTimeout(() => setCopyRoundButtonText("Copy as Markdown"), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+      setCopyRoundButtonText("Failed to copy");
+      setTimeout(() => setCopyRoundButtonText("Copy as Markdown"), 2000);
+    }
+  };
+
   return (
     <div
       class={css({
@@ -148,17 +195,55 @@ export function RoundContent(props: RoundContentProps) {
             borderBottomColor: "border.default",
           })}
         >
-          <HStack justifyContent="space-between" alignItems="center">
+          <HStack justifyContent="space-between" alignItems="center" w="full">
             <Card.Title>Questions</Card.Title>
-            <Show when={hasResult() && questionsExpanded()}>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleToggleQuestions}
-              >
-                Hide Questions
-              </Button>
-            </Show>
+            <HStack gap="2">
+              <Show when={hasResult() && questionsExpanded()}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleToggleQuestions}
+                >
+                  Hide Questions
+                </Button>
+              </Show>
+              <Menu.Root size="sm">
+                <Menu.Trigger
+                  asChild={(triggerProps) => (
+                    <IconButton
+                      {...triggerProps}
+                      size="xs"
+                      variant="plain"
+                      aria-label="Questions actions"
+                    >
+                      <MoreVerticalIcon />
+                    </IconButton>
+                  )}
+                />
+                <Menu.Positioner>
+                  <Menu.Content class={css({ minW: "220px" })}>
+                    <Menu.Item
+                      value="copy-round"
+                      onSelect={() => void handleCopyRound()}
+                    >
+                      <HStack gap="2" alignItems="center">
+                        <CopyIcon />
+                        <Box>{copyRoundButtonText()}</Box>
+                      </HStack>
+                    </Menu.Item>
+                    <Menu.Item
+                      value="export-round"
+                      onSelect={handleExportRound}
+                    >
+                      <HStack gap="2" alignItems="center">
+                        <DownloadIcon />
+                        <Box>Export as Markdown</Box>
+                      </HStack>
+                    </Menu.Item>
+                  </Menu.Content>
+                </Menu.Positioner>
+              </Menu.Root>
+            </HStack>
           </HStack>
         </Box>
 
@@ -397,6 +482,15 @@ export function RoundContent(props: RoundContentProps) {
                       <HStack gap="2" alignItems="center">
                         <CopyIcon />
                         <Box>{copyButtonText()}</Box>
+                      </HStack>
+                    </Menu.Item>
+                    <Menu.Item
+                      value="export-round"
+                      onSelect={handleExportRound}
+                    >
+                      <HStack gap="2" alignItems="center">
+                        <DownloadIcon />
+                        <Box>Export as Markdown</Box>
                       </HStack>
                     </Menu.Item>
                     <Show when={props.isLastRound}>

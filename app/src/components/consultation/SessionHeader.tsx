@@ -1,9 +1,12 @@
 import { Box, HStack, Stack } from "styled-system/jsx";
 import { css } from "styled-system/css";
 import { createSignal, Show, onMount, createEffect } from "solid-js";
+import { CopyIcon, DownloadIcon, MoreVerticalIcon } from "lucide-solid";
 import { Heading } from "~/components/ui/heading";
 import { Text } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
+import { IconButton } from "~/components/ui/icon-button";
+import * as Menu from "~/components/ui/menu";
 import { MarkdownRenderer } from "../MarkdownRenderer";
 
 type SessionHeaderProps = {
@@ -11,11 +14,14 @@ type SessionHeaderProps = {
   title?: string;
   description?: string;
   onBackClick: () => void;
+  onExport?: () => void;
+  onCopy?: () => Promise<string>;
 };
 
 export function SessionHeader(props: SessionHeaderProps) {
   const [isExpanded, setIsExpanded] = createSignal(false);
   const [isClamped, setIsClamped] = createSignal(false);
+  const [copyButtonText, setCopyButtonText] = createSignal("Copy as Markdown");
   let contentRef: HTMLDivElement | undefined;
 
   const handleBackClick = () => {
@@ -26,6 +32,27 @@ export function SessionHeader(props: SessionHeaderProps) {
   const handleToggleExpand = () => {
     console.log("SessionHeader:handleToggleExpand", !isExpanded());
     setIsExpanded(!isExpanded());
+  };
+
+  const handleExport = () => {
+    console.log("SessionHeader:handleExport");
+    props.onExport?.();
+  };
+
+  const handleCopy = async () => {
+    console.log("SessionHeader:handleCopy");
+    if (!props.onCopy) return;
+
+    try {
+      const content = await props.onCopy();
+      await navigator.clipboard.writeText(content);
+      setCopyButtonText("Copied!");
+      setTimeout(() => setCopyButtonText("Copy as Markdown"), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+      setCopyButtonText("Failed to copy");
+      setTimeout(() => setCopyButtonText("Copy as Markdown"), 2000);
+    }
   };
 
   const checkIfClamped = () => {
@@ -51,10 +78,47 @@ export function SessionHeader(props: SessionHeaderProps) {
   return (
     <>
       <Stack gap="4">
-        <HStack gap="4" alignItems="center">
+        <HStack gap="4" alignItems="center" justifyContent="space-between">
           <Button variant="outline" onClick={handleBackClick}>
             ← Back to Sessions
           </Button>
+          <Show when={props.onExport}>
+            <Menu.Root size="sm">
+              <Menu.Trigger
+                asChild={(triggerProps) => (
+                  <IconButton
+                    {...triggerProps}
+                    size="sm"
+                    variant="plain"
+                    aria-label="Session actions"
+                  >
+                    <MoreVerticalIcon />
+                  </IconButton>
+                )}
+              />
+              <Menu.Positioner>
+                <Menu.Content class={css({ minW: "220px" })}>
+                  <Show when={props.onCopy}>
+                    <Menu.Item
+                      value="copy-markdown"
+                      onSelect={() => void handleCopy()}
+                    >
+                      <HStack gap="2" alignItems="center">
+                        <CopyIcon />
+                        <Box>{copyButtonText()}</Box>
+                      </HStack>
+                    </Menu.Item>
+                  </Show>
+                  <Menu.Item value="export" onSelect={handleExport}>
+                    <HStack gap="2" alignItems="center">
+                      <DownloadIcon />
+                      <Box>Export as Markdown</Box>
+                    </HStack>
+                  </Menu.Item>
+                </Menu.Content>
+              </Menu.Positioner>
+            </Menu.Root>
+          </Show>
         </HStack>
 
         <Stack gap="3">

@@ -14,7 +14,12 @@ import { css } from "styled-system/css";
 import * as Tabs from "~/components/ui/tabs";
 import { Text } from "~/components/ui/text";
 import { PageMeta } from "~/components/PageMeta";
-import { SITE_URL } from "~/lib/site-meta";
+import { SITE_URL, SITE_NAME } from "~/lib/site-meta";
+import {
+  exportSessionAsMarkdown,
+  downloadMarkdown,
+  sanitizeFilename,
+} from "~/lib/markdown-export";
 
 import { useConsultation } from "./consultation-context";
 import { useJobs } from "~/components/jobs/job-context";
@@ -55,6 +60,26 @@ export function SessionView() {
   const handleBackClick = () => {
     console.log("SessionView:handleBackClick");
     navigate("/");
+  };
+
+  const handleExportSession = () => {
+    console.log("SessionView:handleExportSession");
+    const session = ctx.sessionData();
+    if (!session) return;
+
+    const markdown = exportSessionAsMarkdown(session);
+    const sessionTitle = session.title || `Session ${session.id.slice(0, 8)}`;
+    const filename = sanitizeFilename(`${SITE_NAME} - ${sessionTitle}.md`);
+
+    downloadMarkdown(markdown, filename);
+  };
+
+  const handleCopySession = async () => {
+    console.log("SessionView:handleCopySession");
+    const session = ctx.sessionData();
+    if (!session) return "";
+
+    return exportSessionAsMarkdown(session);
   };
 
   createEffect(() => {
@@ -146,6 +171,8 @@ export function SessionView() {
                 title={session().title}
                 description={session().description}
                 onBackClick={handleBackClick}
+                onExport={handleExportSession}
+                onCopy={handleCopySession}
               />
 
               <Show

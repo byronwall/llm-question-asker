@@ -5,6 +5,7 @@
 ## Job Tracking
 
 - Really need to show a timer everywhere that we show a spinner?
+- Switch over to web socket for job tracking instead of polling -- need a somewhat robust solution that can be dropped into other Solid Start apps and just work
 
 ## Branding & SEO
 
@@ -24,12 +25,17 @@
 ## UI Improvement
 
 - Tables are quite poor on mobile - might switch over to a simple card based displayed (even in Markdown)
+- Need a strongr separation between the analysis + rec and the next steps + inputs below it. A horizontal rule or a border would help. Or some gap that matches the background color.
 
 ## Infrastructure & Session Logic
 
 - Consider how to handle network requests as the user starts more than 1 session -- question answering did not force the UI to update when going somewhere else -- starting a new session included a redirect even though I left the original page
 
 ## Prompt & Response Strategy
+
+## Export
+
+- Allow exporting an entire session as markdown - include all rounds, questions, answers, output... everything; add a `...` menu item to the header of the session page
 
 ## Did not work
 
