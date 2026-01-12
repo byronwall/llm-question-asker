@@ -277,7 +277,7 @@ export function RoundContent(props: RoundContentProps) {
             </Show>
 
             <Show when={!props.round.result && props.isLastRound}>
-              <HStack gap="4">
+              <HStack gap="4" flexWrap="wrap" w="full">
                 <Button
                   variant="outline"
                   onClick={ctx.handleAddMoreQuestions}

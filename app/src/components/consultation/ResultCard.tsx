@@ -39,7 +39,7 @@ export function ResultCard(props: ResultCardProps) {
               disabled={ctx.isSubmitting()}
             />
           </Field.Root>
-          <HStack gap="3" flexWrap="wrap">
+          <HStack gap="3" flexWrap="wrap" w="full">
             <Button
               onClick={ctx.handleCreateNextRound}
               loading={ctx.isSubmitting()}

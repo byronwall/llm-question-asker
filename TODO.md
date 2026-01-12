@@ -35,7 +35,7 @@
 
 ## Prompt & Response Strategy
 
-- Should probably revise the prompt to avoid "I can do next" type responses - want that to be controlled by the app and not the LLM's default offering.
+- Revise the prompt to avoid offering "I can do next" type responses or askign questions at the end of the response - want that to be controlled by the app and not the LLM's default offering.
 
 ## Did not work
 
