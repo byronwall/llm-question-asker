@@ -1,4 +1,12 @@
-import { For, Match, Show, Suspense, Switch } from "solid-js";
+import {
+  For,
+  Match,
+  Show,
+  Suspense,
+  Switch,
+  createEffect,
+  createSignal,
+} from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Stack } from "styled-system/jsx";
 import { css } from "styled-system/css";
@@ -18,6 +26,9 @@ export function SessionView() {
   const ctx = useConsultation();
   const navigate = useNavigate();
   const jobsCtx = useJobs();
+  const [activeTab, setActiveTab] = createSignal("");
+  let tabsRootRef: HTMLDivElement | undefined;
+  let lastRoundCount = 0;
 
   const sessionSummary = () => {
     const session = ctx.sessionData();
@@ -44,6 +55,32 @@ export function SessionView() {
     console.log("SessionView:handleBackClick");
     navigate("/");
   };
+
+  createEffect(() => {
+    const session = ctx.sessionData();
+    if (!session) return;
+    const roundCount = session.rounds.length;
+    if (roundCount === 0) return;
+
+    const nextValue = `round-${roundCount - 1}`;
+    if (lastRoundCount === 0) {
+      setActiveTab(nextValue);
+      lastRoundCount = roundCount;
+      return;
+    }
+
+    if (roundCount > lastRoundCount) {
+      setActiveTab(nextValue);
+      tabsRootRef?.scrollIntoView({ behavior: "smooth", block: "start" });
+      lastRoundCount = roundCount;
+      return;
+    }
+
+    if (roundCount !== lastRoundCount) {
+      setActiveTab(nextValue);
+      lastRoundCount = roundCount;
+    }
+  });
 
   return (
     <Suspense
@@ -75,6 +112,8 @@ export function SessionView() {
             session().prompt ||
             "AI consultation session with guided questions and answers";
           const pageUrl = () => `${SITE_URL}/session/${session().id}`;
+          const tabValue = () =>
+            activeTab() || `round-${session().rounds.length - 1}`;
           const hasRounds = () => session().rounds.length > 0;
           const activeJob = () =>
             jobsCtx.jobs().find((job) => job.sessionId === session().id);
@@ -111,7 +150,9 @@ export function SessionView() {
                 }
               >
                 <Tabs.Root
-                  defaultValue={`round-${session().rounds.length - 1}`}
+                  value={tabValue()}
+                  onValueChange={setActiveTab}
+                  ref={tabsRootRef}
                 >
                   <Tabs.List>
                     <For each={session().rounds}>

@@ -4,12 +4,7 @@
 
 ## Job Tracking
 
-- Really need to show a timer for how long a job has been running
-- Need to redirect to a new session immediately
-- Need to show a question skeleton or response skeleton immediately when a job is running
-- Visuals on the job popover are not great -- too many borders
-- `Refine with another round` triggers a job, but really needs to create the new round immediately and show a skeleton loading state until the job is complete
-- Not sure how useful the jobs page is
+- Really need to show a timer everywhere that we show a spinner?
 
 ## Branding & SEO
 
@@ -27,9 +22,8 @@
 
 ## UX Improvement
 
-- When results come back for 2nd round of questions, need to select that tab and scroll to top to answer them
+- the delete icon causes a layout shift as it is shown/hides - make it smaller and move into the header with the question type chip
 - Ensure that question responses are saved as they are entered - do not lose them if the page is refreshed; save the free inputs on blur or enter or debounced changes
-- the delete icon causes a layout shift as it is shown/hides.
 - Need to consistently scroll to the "correct spot" when new data loads -- it's going to cause a layout shift regardless, may as well end up in the right place
 
 ## UI Improvement
