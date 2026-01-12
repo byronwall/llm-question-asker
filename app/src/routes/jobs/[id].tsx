@@ -15,6 +15,7 @@ import {
   isActiveStage,
 } from "~/lib/job-types";
 import { Spinner } from "~/components/ui/spinner";
+import { formatPageTitle } from "~/lib/site-meta";
 
 export default function JobDetailPage() {
   const params = useParams<{ id: string }>();
@@ -29,7 +30,7 @@ export default function JobDetailPage() {
 
   return (
     <>
-      <Title>{label()} | Prod Ideator</Title>
+      <Title>{formatPageTitle(label())}</Title>
       <Meta name="description" content={`View job details for ${label()}`} />
 
       <Container maxW="4xl" py="8" px="4">

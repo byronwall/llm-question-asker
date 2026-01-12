@@ -3,6 +3,7 @@ import { css } from "styled-system/css";
 import { HStack, Box } from "styled-system/jsx";
 
 import { JobsIndicator } from "./JobsIndicator";
+import { SITE_NAME } from "~/lib/site-meta";
 
 export function JobsHeader() {
   return (
@@ -29,7 +30,7 @@ export function JobsHeader() {
             _hover: { color: "blue.600" },
           })}
         >
-          Prod Ideator
+          {SITE_NAME}
         </A>
         <JobsIndicator />
       </HStack>

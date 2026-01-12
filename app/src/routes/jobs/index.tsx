@@ -9,6 +9,7 @@ import { getAllJobs } from "~/server/job-actions";
 import { JobCard } from "~/components/jobs/JobCard";
 import { useJobs } from "~/components/jobs/job-context";
 import { isActiveStage, JOB_TYPE_LABELS } from "~/lib/job-types";
+import { formatPageTitle } from "~/lib/site-meta";
 
 export default function JobsPage() {
   const jobsCtx = useJobs();
@@ -36,7 +37,7 @@ export default function JobsPage() {
 
   return (
     <>
-      <Title>Jobs | Prod Ideator</Title>
+      <Title>{formatPageTitle("Jobs")}</Title>
       <Meta name="description" content="View all your AI processing jobs" />
 
       <Container maxW="4xl" py="8" px="4">

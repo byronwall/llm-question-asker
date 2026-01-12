@@ -122,7 +122,7 @@ export function SessionView() {
           const pageDescription = () =>
             session().description ||
             session().prompt ||
-            "AI consultation session with guided questions and answers";
+            "Making better decisions through guided questions";
           const pageUrl = () => `${SITE_URL}/session/${session().id}`;
           const tabValue = () =>
             activeTab() || `round-${session().rounds.length - 1}`;

@@ -1,6 +1,8 @@
-# Prod Ideator
+# Decisory
 
-An AI-powered consultation tool that helps you explore ideas, make decisions, and get personalized recommendations through interactive question-and-answer sessions.
+Guided questions. Better decisions.
+
+An AI-powered consultation tool that helps you make better decisions through structured, guided question-and-answer sessions.
 
 ## Screenshots
 
@@ -12,9 +14,9 @@ An AI-powered consultation tool that helps you explore ideas, make decisions, an
 
 ![Active consultation session with questions and analysis](./docs/screenshot-session.png)
 
-## What is Prod Ideator?
+## What is Decisory?
 
-Prod Ideator is an intelligent consultation assistant that guides you through complex decisions by asking targeted questions and providing AI-generated analysis. Instead of staring at a blank page, you get a structured conversation that helps you think through your needs and receive tailored recommendations.
+Decisory is an intelligent consultation assistant that guides you through complex decisions by asking targeted questions and providing AI-generated analysis. Instead of staring at a blank page, you get a structured conversation that helps you think through your needs and receive tailored recommendations.
 
 ## Key Features
 

@@ -1,7 +1,6 @@
-export const SITE_NAME = "LLM Question Asker";
+export const SITE_NAME = "Decisory";
 
-export const SITE_DESCRIPTION =
-  "Ask structured questions and get comprehensive answers powered by AI. Create consultation sessions with guided prompts for better insights.";
+export const SITE_DESCRIPTION = "Guided questions. Better decisions.";
 
 export const SITE_URL =
   import.meta.env.VITE_SITE_URL || "http://localhost:3000";
