@@ -1,9 +1,12 @@
-import { For, Show, createSignal } from "solid-js";
+import { For, Show, batch, createSignal } from "solid-js";
 import { Stack, Box, HStack, VStack } from "styled-system/jsx";
 import { css } from "styled-system/css";
+import { CopyIcon, MoreVerticalIcon, PlusIcon, RefreshCwIcon } from "lucide-solid";
 import * as Card from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Spinner } from "~/components/ui/spinner";
+import { IconButton } from "~/components/ui/icon-button";
+import * as Menu from "~/components/ui/menu";
 import type { Round } from "~/lib/domain";
 import { useConsultation } from "./consultation-context";
 import { useJobs } from "~/components/jobs/job-context";
@@ -71,6 +74,19 @@ export function RoundContent(props: RoundContentProps) {
       setCopyButtonText("Failed to copy");
       setTimeout(() => setCopyButtonText("Copy as Markdown"), 2000);
     }
+  };
+
+  const handleOpenNewSessionDialog = () => {
+    console.log("RoundContent:handleOpenNewSessionDialog");
+    batch(() => {
+      ctx.setFocusDialogState("closeIntent", false);
+      ctx.setFocusDialogState("isOpen", true);
+    });
+  };
+
+  const handleRefineRound = () => {
+    console.log("RoundContent:handleRefineRound");
+    void ctx.handleCreateNextRound();
   };
 
   const hasResult = () => !!props.round.result;
@@ -305,9 +321,56 @@ export function RoundContent(props: RoundContentProps) {
           <Card.Header>
             <HStack justifyContent="space-between" alignItems="center" w="full">
               <Card.Title>Analysis & Recommendations</Card.Title>
-              <Button size="sm" variant="outline" onClick={handleCopyMarkdown}>
-                {copyButtonText()}
-              </Button>
+              <Menu.Root size="sm">
+                <Menu.Trigger
+                  asChild={(triggerProps) => (
+                    <IconButton
+                      {...triggerProps}
+                      size="xs"
+                      variant="plain"
+                      aria-label="Result actions"
+                    >
+                      <MoreVerticalIcon />
+                    </IconButton>
+                  )}
+                />
+                <Menu.Positioner>
+                  <Menu.Content class={css({ minW: "220px" })}>
+                    <Menu.Item
+                      value="copy-markdown"
+                      onSelect={() => void handleCopyMarkdown()}
+                    >
+                      <HStack gap="2" alignItems="center">
+                        <CopyIcon />
+                        <Box>{copyButtonText()}</Box>
+                      </HStack>
+                    </Menu.Item>
+                    <Show when={props.isLastRound}>
+                      <Menu.Separator />
+                      <Menu.Item
+                        value="refine-round"
+                        onSelect={handleRefineRound}
+                        disabled={ctx.isSubmitting()}
+                      >
+                        <HStack gap="2" alignItems="center">
+                          <RefreshCwIcon />
+                          <Box>Refine with Another Round</Box>
+                        </HStack>
+                      </Menu.Item>
+                      <Menu.Item
+                        value="create-session"
+                        onSelect={handleOpenNewSessionDialog}
+                        disabled={ctx.isSubmitting()}
+                      >
+                        <HStack gap="2" alignItems="center">
+                          <PlusIcon />
+                          <Box>Create new session</Box>
+                        </HStack>
+                      </Menu.Item>
+                    </Show>
+                  </Menu.Content>
+                </Menu.Positioner>
+              </Menu.Root>
             </HStack>
           </Card.Header>
           <Card.Body>

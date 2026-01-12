@@ -2,9 +2,6 @@
 
 ## Dev related
 
-- Add console logs to all major actions, routes, and other spots
-- Improve logs to avoid having too much data in them (session one dumps large object)
-
 ## Job Tracking
 
 - Really need to show a timer for how long a job has been running
@@ -19,11 +16,8 @@
 
 ## Question Types
 
-- add a new question type to help identify the user's overall goal -- so not just questions to get context, but really try to determine their overall goal - reveal the question type as a small chip in the UI when showing the questions
-
 ## Input & User Guidance
 
-- Should add a box to the input which is the "goal" and a separate one for the context -
 - For additional rounds, provide a text box that allows user to guide the questions and any changes to expected output
 - Allow user to highlight text and add commentary - incorporate that into questions and next output - call it `feedback`
 - Allow user to request questions in a specific direction? Maybe offer a "suggestions for next questions" as part of the structured response... then show a drop down menu where the user can choose, submit, and get new questions in a certain way
@@ -33,9 +27,6 @@
 - When results come back for 2nd round of questions, need to select that tab and scroll to top to answer them
 
 ## UI Improvement
-
-- Take the copy as markdown button and move it into a dropdown menu with a `...` trigger icon
-  - THat menu should also include the "create new session" button
 
 ## Infrastructure & Session Logic
 

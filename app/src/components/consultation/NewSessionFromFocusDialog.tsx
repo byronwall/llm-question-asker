@@ -2,7 +2,7 @@ import { batch, createEffect, Show } from "solid-js";
 import { useAction } from "@solidjs/router";
 import { Box, HStack, VStack } from "styled-system/jsx";
 import { css } from "styled-system/css";
-import { XIcon } from "lucide-solid";
+import { PlusIcon, XIcon } from "lucide-solid";
 
 import * as Dialog from "~/components/ui/dialog";
 import { Button } from "~/components/ui/button";
@@ -149,7 +149,10 @@ export function NewSessionFromFocusDialog() {
             variant="outline"
             onClick={() => ctx.setFocusDialogState("isOpen", true)}
           >
-            New Session From This
+            <HStack gap="2" alignItems="center">
+              <PlusIcon />
+              <span>New Session From This</span>
+            </HStack>
           </Button>
         )}
       />
