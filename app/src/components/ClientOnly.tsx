@@ -10,7 +10,7 @@ export function ClientOnly(props: {
 
   return (
     <Show when={mounted()} fallback={props.fallback}>
-      {() => props.children}
+      {(_) => props.children}
     </Show>
   );
 }
