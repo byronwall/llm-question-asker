@@ -1,10 +1,9 @@
 import { Show } from "solid-js";
 import { BriefcaseIcon } from "lucide-solid";
 import { css } from "styled-system/css";
-import { HStack, Box } from "styled-system/jsx";
+import { Box } from "styled-system/jsx";
 
 import { useJobs } from "./job-context";
-import { Spinner } from "~/components/ui/spinner";
 import { Badge } from "~/components/ui/badge";
 import * as Popover from "~/components/ui/popover";
 import { JobsPanel } from "./JobsPanel";
@@ -13,7 +12,6 @@ export function JobsIndicator() {
   const jobsCtx = useJobs();
 
   const count = () => jobsCtx.activeJobCount();
-  const hasActive = () => jobsCtx.hasActiveJobs();
   const handleOpenChange = (details: { open: boolean }) => {
     console.log("JobsIndicator:openChange", { open: details.open });
     jobsCtx.setJobsPanelOpen(details.open);
@@ -28,28 +26,40 @@ export function JobsIndicator() {
         class={css({
           display: "flex",
           alignItems: "center",
-          gap: "2",
-          px: "3",
-          py: "2",
-          rounded: "md",
+          justifyContent: "center",
+          position: "relative",
+          w: "10",
+          h: "10",
+          rounded: "full",
+          bg: "white",
+          border: "1px solid",
+          borderColor: "gray.200",
+          boxShadow: "sm",
           cursor: "pointer",
           transition: "all 0.2s",
-          _hover: { bg: "gray.100" },
+          _hover: { bg: "gray.50" },
         })}
       >
-        <HStack gap="2">
-          <Show when={hasActive()} fallback={<BriefcaseIcon size={18} />}>
-            <Spinner size="sm" />
-          </Show>
-          <span class={css({ fontSize: "sm", fontWeight: "medium" })}>
-            Jobs
-          </span>
-          <Show when={count() > 0}>
-            <Badge size="sm" variant="solid">
-              {count()}
-            </Badge>
-          </Show>
-        </HStack>
+        <BriefcaseIcon size={18} />
+        <Show when={count() > 0}>
+          <Badge
+            size="sm"
+            variant="solid"
+            class={css({
+              position: "absolute",
+              top: "-1",
+              right: "-1",
+              minW: "5",
+              h: "5",
+              px: "1",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            })}
+          >
+            {count()}
+          </Badge>
+        </Show>
       </Popover.Trigger>
 
       <Popover.Positioner>

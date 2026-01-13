@@ -1,39 +1,26 @@
-import { A } from "@solidjs/router";
+import { Show } from "solid-js";
 import { css } from "styled-system/css";
-import { HStack, Box } from "styled-system/jsx";
+import { Box } from "styled-system/jsx";
 
 import { JobsIndicator } from "./JobsIndicator";
-import { SITE_NAME } from "~/lib/site-meta";
+import { useJobs } from "./job-context";
 
 export function JobsHeader() {
+  const jobsCtx = useJobs();
+  const hasActive = () => jobsCtx.hasActiveJobs();
+
   return (
-    <Box
-      class={css({
-        position: "sticky",
-        top: "0",
-        zIndex: "100",
-        bg: "white",
-        borderBottom: "1px solid",
-        borderColor: "gray.200",
-        px: "4",
-        py: "3",
-      })}
-    >
-      <HStack justify="space-between" maxW="4xl" mx="auto">
-        <A
-          href="/"
-          class={css({
-            fontSize: "lg",
-            fontWeight: "semibold",
-            color: "gray.800",
-            textDecoration: "none",
-            _hover: { color: "blue.600" },
-          })}
-        >
-          {SITE_NAME}
-        </A>
+    <Show when={hasActive()}>
+      <Box
+        class={css({
+          position: "fixed",
+          top: "4",
+          right: "4",
+          zIndex: "overlay",
+        })}
+      >
         <JobsIndicator />
-      </HStack>
-    </Box>
+      </Box>
+    </Show>
   );
 }
