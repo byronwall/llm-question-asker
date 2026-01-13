@@ -34,8 +34,6 @@
 
 ## Export
 
-- Allow exporting an entire session as markdown - include all rounds, questions, answers, output... everything; add a `...` menu item to the header of the session page
-
 ## Did not work
 
 - Add a table of contents to the markdown renderer - place on left edge like Less Wrong -- looked too bad, need to rework this if wanted in
