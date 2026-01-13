@@ -27,8 +27,8 @@ export function MarkdownRenderer(props: MarkdownRendererProps) {
             class={css({
               fontSize: "xl",
               fontWeight: "semibold",
-              mt: 5,
-              mb: 3,
+              mt: 4,
+              mb: 2,
             })}
             {...hProps}
           />
@@ -36,13 +36,13 @@ export function MarkdownRenderer(props: MarkdownRendererProps) {
         h3: (hProps) => (
           <Heading
             as="h3"
-            class={css({ fontSize: "lg", fontWeight: "medium", mt: 4, mb: 2 })}
+            class={css({ fontSize: "lg", fontWeight: "medium", mt: 3, mb: 1 })}
             {...hProps}
           />
         ),
         p: (pProps) => (
           <Text
-            class={css({ fontSize: "md", lineHeight: "relaxed", mb: 4 })}
+            class={css({ fontSize: "md", lineHeight: "relaxed", mb: 3 })}
             {...pProps}
           />
         ),
@@ -113,6 +113,15 @@ export function MarkdownRenderer(props: MarkdownRendererProps) {
               mb: 4,
             })}
             {...tableProps}
+          />
+        ),
+        hr: (hrProps) => (
+          <hr
+            class={css({
+              borderColor: "border.subtle",
+              my: 4,
+            })}
+            {...hrProps}
           />
         ),
         thead: (theadProps) => (

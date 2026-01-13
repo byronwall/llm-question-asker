@@ -123,7 +123,11 @@ export function SessionView() {
     <Suspense
       fallback={(() => {
         console.log("SessionView:Suspense:fallback");
-        return <Text>Loading session...</Text>;
+        return (
+          <Stack gap="4">
+            <QuestionsSkeleton withCard={false} count={2} />
+          </Stack>
+        );
       })()}
     >
       <Show
@@ -152,10 +156,20 @@ export function SessionView() {
           const tabValue = () =>
             activeTab() || `round-${session().rounds.length - 1}`;
           const hasRounds = () => session().rounds.length > 0;
+          const hasMultipleRounds = () => session().rounds.length > 1;
+          const hasResults = () =>
+            session().rounds.some((round) => !!round.result);
           const activeJob = () =>
             jobsCtx.jobs().find((job) => job.sessionId === session().id);
           const isCreatingSession = () =>
             activeJob()?.type === "create_session";
+          const hasPromptDetails = () =>
+            !!session().title && !!session().description;
+          const showPromptTriggerInHeader = () =>
+            hasPromptDetails() && !hasRounds();
+          const showPromptTriggerInRounds = () =>
+            hasPromptDetails() && hasRounds();
+          const singleRound = () => session().rounds[0];
 
           return (
             <Stack gap="8">
@@ -171,6 +185,8 @@ export function SessionView() {
                 prompt={session().prompt}
                 title={session().title}
                 description={session().description}
+                collapsePromptByDefault={hasResults()}
+                showPromptTrigger={showPromptTriggerInHeader()}
                 onBackClick={handleBackClick}
                 onExport={handleExportSession}
                 onCopy={handleCopySession}
@@ -189,36 +205,52 @@ export function SessionView() {
                   </Switch>
                 }
               >
-                <Tabs.Root
-                  value={tabValue()}
-                  onValueChange={handleTabChange}
-                  ref={tabsRootRef}
-                >
-                  <Tabs.List>
-                    <For each={session().rounds}>
-                      {(_round, index) => (
-                        <Tabs.Trigger value={`round-${index()}`}>
-                          Round {index() + 1}
-                        </Tabs.Trigger>
-                      )}
-                    </For>
-                    <Tabs.Indicator />
-                  </Tabs.List>
+                <Switch>
+                  <Match when={!hasMultipleRounds()}>
+                    <RoundContent
+                      round={singleRound()}
+                      isLastRound={true}
+                      prompt={session().prompt}
+                      showPromptTrigger={showPromptTriggerInRounds()}
+                    />
+                  </Match>
+                  <Match when={hasMultipleRounds()}>
+                    <Tabs.Root
+                      value={tabValue()}
+                      onValueChange={handleTabChange}
+                      ref={tabsRootRef}
+                    >
+                      <Tabs.List>
+                        <For each={session().rounds}>
+                          {(_round, index) => (
+                            <Tabs.Trigger value={`round-${index()}`}>
+                              Round {index() + 1}
+                            </Tabs.Trigger>
+                          )}
+                        </For>
+                        <Tabs.Indicator />
+                      </Tabs.List>
 
-                  <For each={session().rounds}>
-                    {(round, index) => (
-                      <Tabs.Content
-                        value={`round-${index()}`}
-                        class={css({ overflow: "visible !important" })}
-                      >
-                        <RoundContent
-                          round={round}
-                          isLastRound={index() === session().rounds.length - 1}
-                        />
-                      </Tabs.Content>
-                    )}
-                  </For>
-                </Tabs.Root>
+                      <For each={session().rounds}>
+                        {(round, index) => (
+                          <Tabs.Content
+                            value={`round-${index()}`}
+                            class={css({ overflow: "visible !important" })}
+                          >
+                            <RoundContent
+                              round={round}
+                              isLastRound={
+                                index() === session().rounds.length - 1
+                              }
+                              prompt={session().prompt}
+                              showPromptTrigger={showPromptTriggerInRounds()}
+                            />
+                          </Tabs.Content>
+                        )}
+                      </For>
+                    </Tabs.Root>
+                  </Match>
+                </Switch>
               </Show>
             </Stack>
           );

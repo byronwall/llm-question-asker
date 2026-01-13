@@ -164,8 +164,17 @@ export function JobProvider(props: ParentProps) {
     socket.connect();
     fetchJobs();
 
+    const handleVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      console.log("JobProvider:visibility:refresh");
+      socket.connect();
+      fetchJobs();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
     onCleanup(() => {
       console.log("JobProvider:mount:cleanup");
+      document.removeEventListener("visibilitychange", handleVisibility);
       socket.close();
     });
   });

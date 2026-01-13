@@ -1,7 +1,12 @@
 import { Box, HStack, Stack } from "styled-system/jsx";
 import { css } from "styled-system/css";
 import { createSignal, Show, onMount, createEffect } from "solid-js";
-import { CopyIcon, DownloadIcon, MoreVerticalIcon, TrashIcon } from "lucide-solid";
+import {
+  CopyIcon,
+  DownloadIcon,
+  MoreVerticalIcon,
+  TrashIcon,
+} from "lucide-solid";
 import { useAction, useNavigate } from "@solidjs/router";
 import { Heading } from "~/components/ui/heading";
 import { Text } from "~/components/ui/text";
@@ -11,12 +16,15 @@ import * as Menu from "~/components/ui/menu";
 import { MarkdownRenderer } from "../MarkdownRenderer";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import { deleteSession } from "~/server/actions";
+import { PromptDialog } from "./PromptDialog";
 
 type SessionHeaderProps = {
   sessionId: string;
   prompt: string;
   title?: string;
   description?: string;
+  collapsePromptByDefault?: boolean;
+  showPromptTrigger?: boolean;
   onBackClick: () => void;
   onExport?: () => void;
   onCopy?: () => Promise<string>;
@@ -29,6 +37,7 @@ export function SessionHeader(props: SessionHeaderProps) {
   const [isClamped, setIsClamped] = createSignal(false);
   const [copyButtonText, setCopyButtonText] = createSignal("Copy as Markdown");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = createSignal(false);
+  const [autoCollapsed, setAutoCollapsed] = createSignal(false);
   let contentRef: HTMLDivElement | undefined;
 
   const handleBackClick = () => {
@@ -92,6 +101,39 @@ export function SessionHeader(props: SessionHeaderProps) {
     setTimeout(() => checkIfClamped(), 100);
   });
 
+  createEffect(() => {
+    if (!props.collapsePromptByDefault) {
+      if (autoCollapsed()) setAutoCollapsed(false);
+      return;
+    }
+    if (autoCollapsed()) return;
+    if (isExpanded()) {
+      console.log("SessionHeader:collapsePrompt");
+      setIsExpanded(false);
+    }
+    setAutoCollapsed(true);
+  });
+
+  const promptClampLines = () => {
+    if (isExpanded()) return "unset";
+    if (props.collapsePromptByDefault) return 3;
+    return 7;
+  };
+
+  const displayTitle = () => {
+    if (props.title) return props.title;
+    return props.prompt.slice(0, 64);
+  };
+
+  const displayDescription = () => {
+    if (props.description) return props.description;
+    return props.prompt.slice(0, 140);
+  };
+
+  const showPromptInline = () => !props.title || !props.description;
+  const showPromptTrigger = () =>
+    !showPromptInline() && props.showPromptTrigger;
+
   return (
     <>
       <Stack gap="4">
@@ -149,77 +191,80 @@ export function SessionHeader(props: SessionHeaderProps) {
         </HStack>
 
         <Stack gap="3">
-          <Show when={props.title}>
-            <Heading as="h1" class={css({ fontSize: "2xl" })}>
-              {props.title}
-            </Heading>
-          </Show>
+          <Heading as="h1" class={css({ fontSize: "2xl" })}>
+            {displayTitle()}
+          </Heading>
 
-          <Show when={props.description}>
+          <Show when={displayDescription()}>
             <Text fontSize="lg" color="gray.700">
-              {props.description}
+              {displayDescription()}
             </Text>
           </Show>
 
-          <Box
-            p="4"
-            bg="gray.50"
-            borderRadius="md"
-            borderWidth="1px"
-            borderColor="gray.200"
-            position="relative"
-          >
-            <Stack gap="2">
-              <Box
-                class={css({
-                  position: isExpanded() ? "sticky" : "static",
-                  top: 0,
-                  bg: "white",
-                  zIndex: 10,
-                  pb: 2,
-                  mb: isExpanded() ? 2 : 0,
-                  borderBottomWidth: isExpanded() ? "1px" : "0",
-                  borderBottomColor: "gray.200",
-                })}
-              >
-                <HStack justifyContent="space-between" alignItems="center">
-                  <Text fontSize="sm" fontWeight="semibold" color="gray.600">
-                    Original Prompt
-                  </Text>
-                  <Show when={isExpanded()}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleToggleExpand}
-                    >
-                      Show less
-                    </Button>
-                  </Show>
-                </HStack>
-              </Box>
-
-              <Box
-                ref={contentRef}
-                class={css({
-                  lineClamp: isExpanded() ? "unset" : 7,
-                  overflow: "hidden",
-                })}
-              >
-                <MarkdownRenderer>{props.prompt}</MarkdownRenderer>
-              </Box>
-
-              <Show when={isClamped() || isExpanded()}>
-                <Button
-                  variant="plain"
-                  size="sm"
-                  onClick={handleToggleExpand}
-                  class={css({ alignSelf: "flex-start" })}
+          <Show when={showPromptInline()}>
+            <Box
+              p="3"
+              bg="gray.50"
+              borderRadius="md"
+              borderWidth="1px"
+              borderColor="gray.200"
+              position="relative"
+            >
+              <Stack gap="2">
+                <Box
+                  class={css({
+                    position: isExpanded() ? "sticky" : "static",
+                    top: 0,
+                    bg: "white",
+                    zIndex: 10,
+                    pb: 2,
+                    mb: isExpanded() ? 2 : 0,
+                    borderBottomWidth: isExpanded() ? "1px" : "0",
+                    borderBottomColor: "gray.200",
+                  })}
                 >
-                  {isExpanded() ? "Show less" : "Show more"}
-                </Button>
-              </Show>
-            </Stack>
-          </Box>
+                  <HStack justifyContent="space-between" alignItems="center">
+                    <Text fontSize="sm" fontWeight="semibold" color="gray.600">
+                      Original Prompt
+                    </Text>
+                    <Show when={isExpanded()}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleToggleExpand}
+                      >
+                        Collapse prompt
+                      </Button>
+                    </Show>
+                  </HStack>
+                </Box>
+
+                <Box
+                  ref={contentRef}
+                  class={css({
+                    lineClamp: promptClampLines(),
+                    overflow: "hidden",
+                  })}
+                >
+                  <MarkdownRenderer>{props.prompt}</MarkdownRenderer>
+                </Box>
+
+                <Show when={isClamped() || isExpanded()}>
+                  <Button
+                    variant="plain"
+                    size="sm"
+                    onClick={handleToggleExpand}
+                    class={css({ alignSelf: "flex-start" })}
+                  >
+                    {isExpanded() ? "Show less" : "Show prompt"}
+                  </Button>
+                </Show>
+              </Stack>
+            </Box>
+          </Show>
+          <Show when={showPromptTrigger()}>
+            <PromptDialog prompt={props.prompt} />
+          </Show>
         </Stack>
       </Stack>
 

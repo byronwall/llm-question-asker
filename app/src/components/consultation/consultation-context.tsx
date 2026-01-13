@@ -7,6 +7,8 @@ import {
   createMemo,
   batch,
   createEffect,
+  onMount,
+  onCleanup,
 } from "solid-js";
 import { createStore, type SetStoreFunction } from "solid-js/store";
 import { createAsync, revalidate, useAction } from "@solidjs/router";
@@ -46,6 +48,7 @@ export type ConsultationController = {
   setSessionId: (id: string) => void;
   focusDialogState: FocusDialogState;
   setFocusDialogState: SetStoreFunction<FocusDialogState>;
+  resetFocusDialogState: () => void;
 };
 
 const Ctx = createContext<ConsultationController>();
@@ -92,6 +95,17 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
       closeIntent: false,
     }
   );
+
+  const resetFocusDialogState = () => {
+    batch(() => {
+      setFocusDialogState("isOpen", false);
+      setFocusDialogState("focusInput", "");
+      setFocusDialogState("generatedPrompt", null);
+      setFocusDialogState("generationError", null);
+      setFocusDialogState("isGenerating", false);
+      setFocusDialogState("closeIntent", false);
+    });
+  };
 
   const sessionData = createAsync(() => {
     console.log("ConsultationProvider:createAsync:fetching", {
@@ -151,7 +165,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
 
     batch(() => {
       setPrompt(currentPrompt);
-      setFocusDialogState("closeIntent", false);
+      resetFocusDialogState();
     });
     setIsSubmitting(true);
     try {
@@ -251,6 +265,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     const session = sessionData();
     if (!session) return;
 
+    resetFocusDialogState();
     setIsSubmitting(true);
     try {
       const result = await runSubmitAnswers({
@@ -418,6 +433,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     setSessionId: props.setSessionId,
     focusDialogState,
     setFocusDialogState,
+    resetFocusDialogState,
   }));
 
   createEffect(() => {
@@ -493,6 +509,24 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
       revalidate(getSession.key);
     }
     setLastSessionJobIds(nextIds);
+  });
+
+  onMount(() => {
+    if (typeof document === "undefined") return;
+    const handleVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      console.log("ConsultationProvider:visibility:refresh", {
+        sessionId: props.sessionId,
+      });
+      if (props.sessionId) {
+        revalidate(getSession.key);
+      }
+      void jobsCtx.refreshJobs();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    onCleanup(() => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+    });
   });
 
   return <Ctx.Provider value={value()}>{props.children}</Ctx.Provider>;

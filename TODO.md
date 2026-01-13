@@ -5,7 +5,6 @@
 ## Job Tracking
 
 - Really need to show a timer everywhere that we show a spinner?
-- Switch over to web socket for job tracking instead of polling -- need a somewhat robust solution that can be dropped into other Solid Start apps and just work
 
 ## Branding & SEO
 

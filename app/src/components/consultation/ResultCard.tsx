@@ -1,12 +1,13 @@
+import { RefreshCwIcon } from "lucide-solid";
 import { Show } from "solid-js";
 import { HStack, Stack } from "styled-system/jsx";
-import { PlusIcon, RefreshCwIcon } from "lucide-solid";
+import { MarkdownRenderer } from "~/components/MarkdownRenderer";
 import { Button } from "~/components/ui/button";
 import * as Field from "~/components/ui/field";
-import { MarkdownRenderer } from "~/components/MarkdownRenderer";
 import { Textarea } from "~/components/ui/textarea";
 import { useConsultation } from "./consultation-context";
 import { NewSessionFromFocusDialog } from "./NewSessionFromFocusDialog";
+import { css } from "styled-system/css";
 
 type ResultCardProps = {
   result: string;
@@ -27,6 +28,7 @@ export function ResultCard(props: ResultCardProps) {
 
       <Show when={props.isLastRound}>
         <Stack mt="6" gap="4">
+          <hr class={css({ my: 4 })} />
           <Field.Root>
             <Field.Label fontWeight="bold">
               Additional guidance for the next round (optional)

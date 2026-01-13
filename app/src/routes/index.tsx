@@ -27,14 +27,14 @@ export default function HomeRoute() {
   };
 
   return (
-    <Container py="4" maxW="4xl">
+    <Container py="6" maxW="4xl">
       <PageMeta description={SITE_DESCRIPTION} url={SITE_URL} />
 
       <ConsultationProvider
         sessionId={undefined}
         setSessionId={handleSelectSession}
       >
-        <Stack gap="6">
+        <Stack gap="8">
           <WelcomeCard />
           <SessionList onSelectSession={handleSelectSession} />
         </Stack>

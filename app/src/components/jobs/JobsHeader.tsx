@@ -16,10 +16,10 @@ export function JobsHeader() {
         borderBottom: "1px solid",
         borderColor: "gray.200",
         px: "4",
-        py: "2",
+        py: "3",
       })}
     >
-      <HStack justify="space-between" maxW="6xl" mx="auto">
+      <HStack justify="space-between" maxW="4xl" mx="auto">
         <A
           href="/"
           class={css({
