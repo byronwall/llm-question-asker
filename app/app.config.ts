@@ -3,6 +3,11 @@ import tsconfigPaths from "vite-tsconfig-paths";
 import lucidePreprocess from "vite-plugin-lucide-preprocess";
 
 export default defineConfig({
+  server: {
+    experimental: {
+      websocket: true,
+    },
+  },
   vite: {
     plugins: [lucidePreprocess(), tsconfigPaths()],
 
@@ -10,4 +15,10 @@ export default defineConfig({
       include: ["solid-markdown > micromark", "solid-markdown > unified"],
     },
   },
+}).addRouter({
+  name: "ws",
+  type: "http",
+  handler: "./src/ws/jobs.ts",
+  target: "server",
+  base: "/ws/jobs",
 });

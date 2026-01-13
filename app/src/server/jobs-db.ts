@@ -1,8 +1,8 @@
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { Job, JobStage, JobType } from "~/lib/job-types";
-import { isActiveStage } from "~/lib/job-types";
+import type { Job, JobStage, JobType } from "../lib/job-types";
+import { isActiveStage } from "../lib/job-types";
 
 const nowIso = () => new Date().toISOString();
 const id = () => crypto.randomUUID();

@@ -7,7 +7,6 @@ import {
   createMemo,
   batch,
   createEffect,
-  onCleanup,
 } from "solid-js";
 import { createStore, type SetStoreFunction } from "solid-js/store";
 import { createAsync, revalidate, useAction } from "@solidjs/router";
@@ -22,9 +21,7 @@ import {
   getSession,
   submitAnswers,
 } from "~/server/actions";
-import { getJob } from "~/server/job-actions";
 import { toaster } from "~/components/ui/toast";
-import { JOB_TYPE_LABELS } from "~/lib/job-types";
 import { useJobs } from "~/components/jobs/job-context";
 
 export type ConsultationController = {
@@ -68,8 +65,6 @@ type FocusDialogState = {
   closeIntent: boolean;
 };
 
-const POLL_INTERVAL_MS = 1500;
-
 export function ConsultationProvider(props: ConsultationProviderProps) {
   console.log("ConsultationProvider:init", {
     sessionId: props.sessionId,
@@ -78,16 +73,15 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
 
   const jobsCtx = useJobs();
 
-  let isMounted = true;
-  onCleanup(() => {
-    isMounted = false;
-  });
-
   const [prompt, setPrompt] = createSignal("");
   const [isSubmitting, setIsSubmitting] = createSignal(false);
   const [answers, setAnswers] = createStore<Answer[]>([]);
   const [refineGuidance, setRefineGuidance] = createSignal("");
   const [pendingJobId, setPendingJobId] = createSignal<string | null>(null);
+  const [pendingJobHandler, setPendingJobHandler] = createSignal<
+    ((job: Job) => void) | null
+  >(null);
+  const [lastSessionJobIds, setLastSessionJobIds] = createSignal<string[]>([]);
   const [focusDialogState, setFocusDialogState] = createStore<FocusDialogState>(
     {
       isOpen: false,
@@ -145,77 +139,10 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     return round.answers.length === round.questions.length;
   };
 
-  const pollForJobCompletion = (
-    jobId: string,
-    onComplete: (job: Job) => void
-  ) => {
-    console.log("ConsultationProvider:pollForJobCompletion:start", { jobId });
-
-    const poll = async () => {
-      if (!isMounted) return;
-      try {
-        const job = await getJob(jobId);
-        if (!isMounted) return;
-        console.log("ConsultationProvider:pollForJobCompletion:poll", {
-          jobId,
-          stage: job?.stage,
-        });
-
-        if (!job) {
-          console.error(
-            "ConsultationProvider:pollForJobCompletion:jobNotFound"
-          );
-          if (!isMounted) return;
-          setIsSubmitting(false);
-          setPendingJobId(null);
-          await jobsCtx.refreshJobs();
-          return;
-        }
-
-        if (job.stage === "completed") {
-          console.log("ConsultationProvider:pollForJobCompletion:completed", {
-            jobId,
-            resultSessionId: job.resultSessionId,
-          });
-          if (!isMounted) return;
-          setIsSubmitting(false);
-          setPendingJobId(null);
-          await jobsCtx.refreshJobs();
-          onComplete(job);
-          return;
-        }
-
-        if (job.stage === "failed") {
-          console.error("ConsultationProvider:pollForJobCompletion:failed", {
-            jobId,
-            error: job.error,
-          });
-          if (!isMounted) return;
-          toaster.dismiss();
-          toaster.create({
-            title: "Operation failed",
-            description: job.error ?? "An error occurred",
-            type: "error",
-            duration: 5000,
-          });
-          setIsSubmitting(false);
-          setPendingJobId(null);
-          await jobsCtx.refreshJobs();
-          return;
-        }
-
-        if (isMounted) {
-          setTimeout(poll, POLL_INTERVAL_MS);
-        }
-      } catch (err) {
-        console.error("ConsultationProvider:pollForJobCompletion:error", err);
-        if (!isMounted) return;
-        setIsSubmitting(false);
-        setPendingJobId(null);
-      }
-    };
-
-    poll();
+  const startJobTracking = (jobId: string, onComplete: (job: Job) => void) => {
+    console.log("ConsultationProvider:jobTracking:start", { jobId });
+    setPendingJobId(jobId);
+    setPendingJobHandler(() => onComplete);
   };
 
   const startCreateSession = async (nextPrompt: string) => {
@@ -233,11 +160,10 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
         jobId: result.jobId,
       });
 
-      setPendingJobId(result.jobId);
       jobsCtx.addJobToWatch(result.jobId);
       props.setSessionId(result.sessionId);
 
-      pollForJobCompletion(result.jobId, (job) => {
+      startJobTracking(result.jobId, (job) => {
         if (job.resultSessionId) {
           toaster.create({
             title: "Session ready!",
@@ -255,6 +181,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
       console.error("ConsultationProvider:handleCreateSession:error", error);
       setIsSubmitting(false);
       setPendingJobId(null);
+      setPendingJobHandler(null);
       toaster.create({
         title: "Failed to start",
         description: String(error),
@@ -334,10 +261,9 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
         jobId: result.jobId,
       });
 
-      setPendingJobId(result.jobId);
       jobsCtx.addJobToWatch(result.jobId);
 
-      pollForJobCompletion(result.jobId, () => {
+      startJobTracking(result.jobId, () => {
         toaster.create({
           title: "Result ready!",
           description: "Your personalized recommendation is ready",
@@ -351,6 +277,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
       console.error("ConsultationProvider:handleSubmitRound:error", error);
       setIsSubmitting(false);
       setPendingJobId(null);
+      setPendingJobHandler(null);
       toaster.create({
         title: "Failed to generate result",
         description: String(error),
@@ -379,11 +306,10 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
         jobId: result.jobId,
       });
 
-      setPendingJobId(result.jobId);
       jobsCtx.addJobToWatch(result.jobId);
       revalidate(getSession.key);
 
-      pollForJobCompletion(result.jobId, () => {
+      startJobTracking(result.jobId, () => {
         toaster.create({
           title: "Next round ready!",
           description: "New questions have been generated",
@@ -397,6 +323,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
       console.error("ConsultationProvider:handleCreateNextRound:error", error);
       setIsSubmitting(false);
       setPendingJobId(null);
+      setPendingJobHandler(null);
       toaster.create({
         title: "Failed to create next round",
         description: String(error),
@@ -421,10 +348,9 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
         jobId: result.jobId,
       });
 
-      setPendingJobId(result.jobId);
       jobsCtx.addJobToWatch(result.jobId);
 
-      pollForJobCompletion(result.jobId, () => {
+      startJobTracking(result.jobId, () => {
         toaster.create({
           title: "More questions added!",
           description: "Additional questions have been generated",
@@ -437,6 +363,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
       console.error("ConsultationProvider:handleAddMoreQuestions:error", error);
       setIsSubmitting(false);
       setPendingJobId(null);
+      setPendingJobHandler(null);
       toaster.create({
         title: "Failed to add questions",
         description: String(error),
@@ -494,21 +421,78 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
   }));
 
   createEffect(() => {
+    const jobId = pendingJobId();
+    if (!jobId) return;
+    const job = jobsCtx.getJobById(jobId);
+    if (!job) return;
+
+    console.log("ConsultationProvider:jobUpdate", {
+      jobId,
+      stage: job.stage,
+    });
+
+    if (job.stage === "completed") {
+      console.log("ConsultationProvider:jobCompleted", {
+        jobId,
+        resultSessionId: job.resultSessionId,
+      });
+      const handler = pendingJobHandler();
+      setIsSubmitting(false);
+      setPendingJobId(null);
+      setPendingJobHandler(null);
+      handler?.(job);
+      return;
+    }
+
+    if (job.stage === "failed") {
+      console.error("ConsultationProvider:jobFailed", {
+        jobId,
+        error: job.error,
+      });
+      toaster.dismiss();
+      toaster.create({
+        title: "Operation failed",
+        description: job.error ?? "An error occurred",
+        type: "error",
+        duration: 5000,
+      });
+      setIsSubmitting(false);
+      setPendingJobId(null);
+      setPendingJobHandler(null);
+    }
+  });
+
+  createEffect(() => {
     const hasActive = hasSessionActiveJobs();
     console.log("ConsultationProvider:sessionJobs:check", {
       sessionId: props.sessionId,
       activeCount: sessionActiveJobs().length,
     });
     if (!hasActive) return;
-    const interval = setInterval(() => {
-      console.log("ConsultationProvider:sessionJobs:revalidate", {
+    console.log("ConsultationProvider:sessionJobs:revalidate", {
+      sessionId: props.sessionId,
+    });
+    revalidate(getSession.key);
+  });
+
+  createEffect(() => {
+    if (!props.sessionId) return;
+    const activeJobs = sessionActiveJobs();
+    const nextIds = activeJobs.map((job) => job.id);
+    const prevIds = lastSessionJobIds();
+    const hasChanges =
+      nextIds.length !== prevIds.length ||
+      nextIds.some((id, index) => id !== prevIds[index]);
+    if (!hasChanges) return;
+    const removedIds = prevIds.filter((id) => !nextIds.includes(id));
+    if (removedIds.length > 0) {
+      console.log("ConsultationProvider:sessionJobs:completed", {
         sessionId: props.sessionId,
+        removedIds,
       });
       revalidate(getSession.key);
-    }, POLL_INTERVAL_MS);
-    onCleanup(() => {
-      clearInterval(interval);
-    });
+    }
+    setLastSessionJobIds(nextIds);
   });
 
   return <Ctx.Provider value={value()}>{props.children}</Ctx.Provider>;

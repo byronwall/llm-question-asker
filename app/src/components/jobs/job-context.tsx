@@ -5,16 +5,19 @@ import {
   type ParentProps,
   createSignal,
   createMemo,
-  createEffect,
+  batch,
   onCleanup,
+  onMount,
 } from "solid-js";
-import { createStore, reconcile } from "solid-js/store";
+import { createStore } from "solid-js/store";
 import { revalidate } from "@solidjs/router";
 
 import type { Job } from "~/lib/job-types";
 import { isActiveStage, STALL_THRESHOLD_MS } from "~/lib/job-types";
 import { getActiveJobs, cancelJob } from "~/server/job-actions";
 import { toaster } from "~/components/ui/toast";
+import { createJobSocketClient } from "~/lib/job-socket-client";
+import type { JobSocketServerMessage } from "~/lib/job-socket-messages";
 
 export type JobController = {
   jobs: Accessor<Job[]>;
@@ -31,19 +34,20 @@ export type JobController = {
 
 const Ctx = createContext<JobController>();
 
-const POLL_INTERVAL_MS = 2000;
-
 export function JobProvider(props: ParentProps) {
   console.log("JobProvider:init");
 
-  const [jobs, setJobs] = createStore<Job[]>([]);
+  const [jobsById, setJobsById] = createStore<Record<string, Job>>({});
+  const [activeJobIds, setActiveJobIds] = createSignal<string[]>([]);
   const [isJobsPanelOpen, setJobsPanelOpen] = createSignal(false);
   const [watchedJobIds, setWatchedJobIds] = createSignal<Set<string>>(
     new Set()
   );
 
   const activeJobs = createMemo(() =>
-    jobs.filter((j) => isActiveStage(j.stage))
+    activeJobIds()
+      .map((jobId) => jobsById[jobId])
+      .filter((job): job is Job => !!job)
   );
   const activeJobCount = () => activeJobs().length;
   const hasActiveJobs = () => activeJobCount() > 0;
@@ -57,6 +61,43 @@ export function JobProvider(props: ParentProps) {
     });
   });
 
+  const sortJobIds = (ids: string[]) => {
+    const unique = Array.from(new Set(ids));
+    return unique.sort((a, b) =>
+      (jobsById[b]?.createdAt ?? "").localeCompare(jobsById[a]?.createdAt ?? "")
+    );
+  };
+
+  const applyActiveJobsSnapshot = (activeJobsList: Job[]) => {
+    const sorted = [...activeJobsList].sort((a, b) =>
+      b.createdAt.localeCompare(a.createdAt)
+    );
+    batch(() => {
+      for (const job of sorted) {
+        setJobsById(job.id, job);
+      }
+      setActiveJobIds(sorted.map((job) => job.id));
+    });
+  };
+
+  const handleJobUpdate = (job: Job) => {
+    batch(() => {
+      setJobsById(job.id, job);
+      if (isActiveStage(job.stage)) {
+        setActiveJobIds((prev) => sortJobIds([...prev, job.id]));
+      } else {
+        setActiveJobIds((prev) => prev.filter((id) => id !== job.id));
+        if (watchedJobIds().has(job.id)) {
+          setWatchedJobIds((prev) => {
+            const next = new Set(prev);
+            next.delete(job.id);
+            return next;
+          });
+        }
+      }
+    });
+  };
+
   const fetchJobs = async () => {
     try {
       // Force cache invalidation first
@@ -64,14 +105,9 @@ export function JobProvider(props: ParentProps) {
       const activeJobsList = await getActiveJobs();
       console.log("JobProvider:fetchJobs", { count: activeJobsList.length });
 
-      const prevJobs = [...jobs];
+      const prevJobs = [...activeJobs()];
 
-      // Clear and reset the jobs array to ensure reactivity
-      if (activeJobsList.length === 0) {
-        setJobs([]);
-      } else {
-        setJobs(reconcile(activeJobsList));
-      }
+      applyActiveJobsSnapshot(activeJobsList);
 
       for (const job of activeJobsList) {
         const prevJob = prevJobs.find((j) => j.id === job.id);
@@ -101,21 +137,36 @@ export function JobProvider(props: ParentProps) {
     }
   };
 
-  createEffect(() => {
-    console.log("JobProvider:effect:polling", {
-      hasActiveJobs: hasActiveJobs(),
+  const handleSocketMessage = (message: JobSocketServerMessage) => {
+    if (message.type === "jobs:init") {
+      console.log("JobProvider:socket:init", {
+        count: message.jobs.length,
+      });
+      applyActiveJobsSnapshot(message.jobs);
+      return;
+    }
+
+    if (message.type === "jobs:update") {
+      handleJobUpdate(message.job);
+    }
+  };
+
+  onMount(() => {
+    if (typeof window === "undefined") return;
+    console.log("JobProvider:mount:socket");
+    const socket = createJobSocketClient({
+      path: "/ws/jobs",
+      onMessage: handleSocketMessage,
+      onStatus: (status) => {
+        console.log("JobProvider:socket:status", { status });
+      },
     });
+    socket.connect();
     fetchJobs();
 
-    const interval = setInterval(() => {
-      if (hasActiveJobs() || watchedJobIds().size > 0) {
-        fetchJobs();
-      }
-    }, POLL_INTERVAL_MS);
-
     onCleanup(() => {
-      console.log("JobProvider:effect:cleanup");
-      clearInterval(interval);
+      console.log("JobProvider:mount:cleanup");
+      socket.close();
     });
   });
 
@@ -151,11 +202,11 @@ export function JobProvider(props: ParentProps) {
   };
 
   const getJobById = (jobId: string) => {
-    return jobs.find((j) => j.id === jobId);
+    return jobsById[jobId];
   };
 
   const value = createMemo<JobController>(() => ({
-    jobs: () => jobs,
+    jobs: () => activeJobs(),
     activeJobCount,
     hasActiveJobs,
     stalledJobs,
