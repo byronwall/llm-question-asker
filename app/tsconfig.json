@@ -10,6 +10,7 @@
     "allowJs": true,
     "strict": true,
     "noEmit": true,
+    "skipLibCheck": true,
     "types": ["vinxi/types/client"],
     "isolatedModules": true,
     "paths": {
@@ -18,5 +19,6 @@
     },
     "baseUrl": "."
   },
-  "include": ["src", "styled-system", "panda.config.ts"]
+  "include": ["src", "styled-system", "panda.config.ts"],
+  "exclude": ["node_modules"]
 }

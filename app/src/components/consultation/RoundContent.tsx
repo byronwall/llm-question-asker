@@ -566,11 +566,7 @@ export function RoundContent(props: RoundContentProps) {
                     <Show when={canCollapseQuestions()}>
                       <Collapsible.Trigger
                         asChild={(triggerProps) => (
-                          <Button
-                            {...triggerProps}
-                            variant="outline"
-                            size="sm"
-                          >
+                          <Button {...triggerProps} variant="outline" size="sm">
                             {questionsExpanded()
                               ? "Hide Questions"
                               : "Show Questions"}
@@ -629,7 +625,9 @@ export function RoundContent(props: RoundContentProps) {
             </Card.Root>
           </Collapsible.Root>
         }
-      />
+      >
+        {(_) => null}
+      </Show>
 
       <Show when={isGeneratingResult() && pendingJob()}>
         {(job) => (
@@ -702,7 +700,6 @@ export function RoundContent(props: RoundContentProps) {
           </Card.Root>
         )}
       </Show>
-
     </div>
   );
 }

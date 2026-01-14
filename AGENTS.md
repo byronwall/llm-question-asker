@@ -520,13 +520,16 @@ Use these exact tags so they’re searchable:
 
 ## Testing and verification
 
+- Run `pnpm type-check` to verify TypeScript types without building.
+  - This runs `tsc --noEmit` and checks for type errors faster than a full build.
+  - Recommended as a quick verification step during development.
 - Run `pnpm build` to verify the build passes after making changes.
-- This project uses Vinxi (SolidStart) for building. The build compiles:
-  - SSR bundle
-  - Client bundle
-  - Server functions bundle
-- The build will catch TypeScript errors and bundling issues.
-- There are no unit tests currently; verification is done via successful build and manual testing.
+  - This project uses Vinxi (SolidStart) for building. The build compiles:
+    - SSR bundle
+    - Client bundle
+    - Server functions bundle
+  - The build will catch TypeScript errors and bundling issues.
+- There are no unit tests currently; verification is done via successful type check, build, and manual testing.
 
 ---
 
@@ -548,4 +551,3 @@ Use these exact tags so they’re searchable:
 - [ ] No `any` without a comment; no `as any` without `TODO:AS_ANY`
 - [ ] Named exports; imports at top; no `typeof import(...)`
 - [ ] Large changes include a few `console.log` breadcrumbs
-
