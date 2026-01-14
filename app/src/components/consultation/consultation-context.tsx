@@ -23,8 +23,10 @@ import {
   getSession,
   submitAnswers,
 } from "~/server/actions";
+import { createDummySession } from "~/server/actions-dev-only";
 import { toaster } from "~/components/ui/toast";
 import { useJobs } from "~/components/jobs/job-context";
+import { isDev } from "~/lib/env";
 
 export type ConsultationController = {
   prompt: Accessor<string>;
@@ -38,6 +40,7 @@ export type ConsultationController = {
   currentRound: Accessor<Round | null>;
   isRoundComplete: Accessor<boolean>;
   handleCreateSession: () => Promise<void>;
+  handleCreateDummySession: () => Promise<void>;
   handleCreateSessionFromPrompt: (value: string) => Promise<void>;
   handleToggleOption: (questionId: string, optionId: string) => void;
   handleCustomInput: (questionId: string, value: string) => void;
@@ -130,6 +133,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
   });
 
   const runCreateSession = useAction(createSession);
+  const runCreateDummySession = isDev ? useAction(createDummySession) : null;
   const runSubmitAnswers = useAction(submitAnswers);
   const runCreateNextRound = useAction(createNextRound);
   const runAddMoreQuestions = useAction(addMoreQuestions);
@@ -159,7 +163,11 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     setPendingJobHandler(() => onComplete);
   };
 
-  const startCreateSession = async (nextPrompt: string) => {
+  const startCreateSession = async (
+    nextPrompt: string,
+    actionLabel: string,
+    runAction: (prompt: string) => Promise<{ jobId: string; sessionId: string }>
+  ) => {
     const currentPrompt = nextPrompt.trim();
     if (!currentPrompt) return;
 
@@ -169,9 +177,10 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     });
     setIsSubmitting(true);
     try {
-      const result = await runCreateSession(currentPrompt);
+      const result = await runAction(currentPrompt);
       console.log("ConsultationProvider:handleCreateSession:jobCreated", {
         jobId: result.jobId,
+        action: actionLabel,
       });
 
       jobsCtx.addJobToWatch(result.jobId);
@@ -207,12 +216,21 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
 
   const handleCreateSession = async () => {
     console.log("ConsultationProvider:handleCreateSession");
-    await startCreateSession(prompt());
+    await startCreateSession(prompt(), "create", runCreateSession);
+  };
+
+  const handleCreateDummySession = async () => {
+    console.log("ConsultationProvider:handleCreateDummySession");
+    if (!isDev || !runCreateDummySession) {
+      console.log("ConsultationProvider:handleCreateDummySession:disabled");
+      return;
+    }
+    await startCreateSession(prompt(), "dummy", runCreateDummySession);
   };
 
   const handleCreateSessionFromPrompt = async (value: string) => {
     console.log("ConsultationProvider:handleCreateSessionFromPrompt");
-    await startCreateSession(value);
+    await startCreateSession(value, "create", runCreateSession);
   };
 
   const handleToggleOption = (questionId: string, optionId: string) => {
@@ -423,6 +441,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     currentRound,
     isRoundComplete,
     handleCreateSession,
+    handleCreateDummySession,
     handleCreateSessionFromPrompt,
     handleToggleOption,
     handleCustomInput,

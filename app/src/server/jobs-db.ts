@@ -3,9 +3,33 @@ import path from "node:path";
 
 import type { Job, JobStage, JobType } from "../lib/job-types";
 import { isActiveStage } from "../lib/job-types";
+import { publishJobUpdate } from "./job-events";
 
 const nowIso = () => new Date().toISOString();
 const id = () => crypto.randomUUID();
+
+type JobListener = (job: Job) => void;
+
+const listeners = new Set<JobListener>();
+
+const notifyJobUpdate = (job: Job) => {
+  console.log("jobs-db:notifyJobUpdate", {
+    jobId: job.id,
+    listeners: listeners.size,
+  });
+  if (listeners.size === 0) return;
+  for (const listener of listeners) {
+    try {
+      console.log("jobs-db:notifyJobUpdate:listener", {
+        jobId: job.id,
+        listenerId: listener.name,
+      });
+      listener(job);
+    } catch (err) {
+      console.error("jobs-db:listener:error", err);
+    }
+  }
+};
 
 function getJobsDirPath() {
   return path.join(process.cwd(), "data", "jobs");
@@ -46,6 +70,8 @@ class JobsDb {
       if (!data) throw new Error("Job not found");
       result = await fn(data);
       await this.writeJobFile(jobId, data);
+      notifyJobUpdate(data);
+      publishJobUpdate(data);
     });
     await this.writeQueue;
     return result;
@@ -72,6 +98,8 @@ class JobsDb {
     });
     await this.writeQueue;
     console.log("jobs-db:createJob", { jobId, type, sessionId });
+    notifyJobUpdate(job);
+    publishJobUpdate(job);
     return job;
   }
 
@@ -174,6 +202,15 @@ class JobsDb {
       job.updatedAt = nowIso();
       return job;
     });
+  }
+
+  onJobUpdate(listener: JobListener) {
+    listeners.add(listener);
+    console.log("jobs-db:listener:add", { listeners: listeners.size });
+    return () => {
+      listeners.delete(listener);
+      console.log("jobs-db:listener:remove", { listeners: listeners.size });
+    };
   }
 }
 

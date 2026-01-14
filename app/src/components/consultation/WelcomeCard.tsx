@@ -7,6 +7,7 @@ import { Text } from "~/components/ui/text";
 import { Textarea } from "~/components/ui/textarea";
 import { Spinner } from "~/components/ui/spinner";
 import { SITE_DESCRIPTION, SITE_NAME } from "~/lib/site-meta";
+import { isDev } from "~/lib/env";
 import { useConsultation } from "./consultation-context";
 import { useJobs } from "~/components/jobs/job-context";
 import { JobStageIndicator } from "~/components/jobs/JobStageIndicator";
@@ -77,13 +78,25 @@ export function WelcomeCard() {
             />
           </VStack>
 
-          <Button
-            class={css({ py: 5, fontSize: "lg", alignSelf: "flex-start" })}
-            loading={ctx.isSubmitting()}
-            onClick={ctx.handleCreateSession}
-          >
-            Start Consultation
-          </Button>
+          <HStack gap="3" flexWrap="wrap">
+            <Button
+              class={css({ py: 5, fontSize: "lg" })}
+              loading={ctx.isSubmitting()}
+              onClick={ctx.handleCreateSession}
+            >
+              Start Consultation
+            </Button>
+            <Show when={isDev}>
+              <Button
+                class={css({ py: 5, fontSize: "lg" })}
+                variant="outline"
+                loading={ctx.isSubmitting()}
+                onClick={ctx.handleCreateDummySession}
+              >
+                Run Dummy Job
+              </Button>
+            </Show>
+          </HStack>
 
           <Show when={ctx.isSubmitting() && pendingJob()}>
             {(job) => (

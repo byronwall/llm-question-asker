@@ -1,22 +1,16 @@
 import { eventHandler } from "vinxi/http";
 
-import { watch, type FSWatcher } from "node:fs";
-import { mkdir } from "node:fs/promises";
-import path from "node:path";
-
 import type { JobSocketServerMessage } from "../lib/job-socket-messages";
 import type { Job } from "../lib/job-types";
 import { jobsDb } from "../server/jobs-db";
+import { subscribeJobUpdates } from "../server/job-events";
 
 const sendMessage = (peer: Peer, message: JobSocketServerMessage) => {
   peer.send(JSON.stringify(message));
 };
 
 const peers = new Set<Peer>();
-const pendingUpdates = new Map<string, ReturnType<typeof setTimeout>>();
-let watcher: FSWatcher | null = null;
-
-const getJobsDirPath = () => path.join(process.cwd(), "data", "jobs");
+let unsubscribe: (() => void) | null = null;
 
 const broadcastJob = (job: Job) => {
   for (const peer of peers) {
@@ -28,51 +22,21 @@ const broadcastJob = (job: Job) => {
   }
 };
 
-const scheduleJobBroadcast = (jobId: string) => {
-  const existing = pendingUpdates.get(jobId);
-  if (existing) {
-    clearTimeout(existing);
-  }
-  const timeout = setTimeout(async () => {
-    pendingUpdates.delete(jobId);
-    const job = await jobsDb().getJob(jobId);
-    if (!job) return;
+const ensureSubscription = () => {
+  if (unsubscribe) return;
+  unsubscribe = subscribeJobUpdates((job) => {
     broadcastJob(job);
-  }, 50);
-  pendingUpdates.set(jobId, timeout);
-};
-
-const handleWatchEvent = (eventType: string, filename?: string | Buffer) => {
-  if (!filename) return;
-  const name = typeof filename === "string" ? filename : filename.toString();
-  if (!name.endsWith(".json")) return;
-  const jobId = name.slice(0, -".json".length);
-  console.log("job-socket:watch", { eventType, jobId });
-  scheduleJobBroadcast(jobId);
-};
-
-const ensureWatcher = async () => {
-  if (watcher) return;
-  const dir = getJobsDirPath();
-  await mkdir(dir, { recursive: true });
-  watcher = watch(dir, handleWatchEvent);
-  watcher.on("error", (err) => {
-    console.error("job-socket:watcher:error", err);
   });
-  console.log("job-socket:watcher:start", { dir });
+  console.log("job-socket:subscription:start");
 };
 
-const stopWatcherIfIdle = () => {
+const stopSubscriptionIfIdle = () => {
   if (peers.size > 0) return;
-  if (watcher) {
-    watcher.close();
-    watcher = null;
-    console.log("job-socket:watcher:stop");
+  if (unsubscribe) {
+    unsubscribe();
+    unsubscribe = null;
+    console.log("job-socket:subscription:stop");
   }
-  for (const timeout of pendingUpdates.values()) {
-    clearTimeout(timeout);
-  }
-  pendingUpdates.clear();
 };
 
 type Peer = Parameters<
@@ -85,9 +49,13 @@ const handler = eventHandler({
   handler() {},
   websocket: {
     async open(peer) {
-      console.log("job-socket:open", { id: peer.id, url: peer.request.url });
       peers.add(peer);
-      await ensureWatcher();
+      console.log("job-socket:open", {
+        id: peer.id,
+        url: peer.request.url,
+        peers: peers.size,
+      });
+      ensureSubscription();
       try {
         const activeJobs = await jobsDb().listActiveJobs();
         sendMessage(peer, { type: "jobs:init", jobs: activeJobs });
@@ -96,14 +64,15 @@ const handler = eventHandler({
       }
     },
     close(peer, details) {
+      peers.delete(peer);
       console.log("job-socket:close", {
         id: peer.id,
         url: peer.request.url,
         code: details.code,
         reason: details.reason,
+        peers: peers.size,
       });
-      peers.delete(peer);
-      stopWatcherIfIdle();
+      stopSubscriptionIfIdle();
     },
     message(peer, message) {
       console.log("job-socket:message", {

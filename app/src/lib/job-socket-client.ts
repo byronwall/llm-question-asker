@@ -1,7 +1,7 @@
 import type {
   JobSocketClientMessage,
   JobSocketServerMessage,
-} from "~/lib/job-socket-messages";
+} from "./job-socket-messages";
 
 export type JobSocketStatus =
   | "idle"
