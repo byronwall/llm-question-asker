@@ -68,15 +68,12 @@ export function SessionList(props: SessionListProps) {
                     : null;
                 const questionCount = () =>
                   latestRound()?.questions.length ?? 0;
-                const answeredCount = () =>
-                  latestRound()?.answers.length ?? 0;
+                const answeredCount = () => latestRound()?.answers.length ?? 0;
                 const hasResult = () => !!latestRound()?.result;
                 const hasQuestionsWaiting = () =>
                   questionCount() > answeredCount() && !hasResult();
                 const activeJob = () =>
-                  jobsCtx
-                    .jobs()
-                    .find((job) => job.sessionId === session.id);
+                  jobsCtx.jobs().find((job) => job.sessionId === session.id);
                 const statusLabel = () => {
                   if (activeJob()) return JOB_TYPE_LABELS[activeJob()!.type];
                   if (hasResult()) return "Recommendations ready";
@@ -104,6 +101,11 @@ export function SessionList(props: SessionListProps) {
                         {displayDescription()}
                       </Text>
                       <HStack gap="2" flexWrap="wrap">
+                        <Text fontSize="xs" color="gray.500">
+                          {roundCount()}{" "}
+                          {roundCount() === 1 ? "round" : "rounds"} •{" "}
+                          {displayDate()} at {displayTime()}
+                        </Text>
                         <Badge size="sm" variant="subtle">
                           {statusLabel()}
                         </Badge>
@@ -123,10 +125,6 @@ export function SessionList(props: SessionListProps) {
                           </Badge>
                         </Show>
                       </HStack>
-                      <Text fontSize="xs" color="gray.500">
-                        {roundCount()} {roundCount() === 1 ? "round" : "rounds"}{" "}
-                        • {displayDate()} at {displayTime()}
-                      </Text>
                     </Stack>
                   </Box>
                 );
