@@ -1,4 +1,4 @@
-import { children, splitProps, onMount } from "solid-js";
+import { children, splitProps, onMount, createSignal, Show } from "solid-js";
 import type { SolidMarkdownComponents } from "solid-markdown";
 import { codeToHtml } from "shiki";
 import { css } from "styled-system/css";
@@ -9,6 +9,7 @@ import { markdownTableComponents } from "~/components/markdown-table-components"
 import { normalizeCodeText, parseLanguage } from "~/lib/markdown-utils";
 
 const SHIKI_THEME = "github-light";
+const CODE_BLOCK_COLLAPSED_HEIGHT = 240;
 
 // Styles
 const styles = {
@@ -29,13 +30,49 @@ const styles = {
     fontStyle: "italic",
     color: "fg.muted",
   }),
+  preWrapper: css({
+    position: "relative",
+    my: 4,
+    borderRadius: "md",
+    overflow: "hidden",
+  }),
   pre: css({
     fontFamily: "mono",
     bg: "bg.subtle",
     borderRadius: "md",
     overflow: "auto",
     p: 4,
-    my: 4,
+    m: 0,
+  }),
+  preCollapsed: css({
+    maxHeight: `${CODE_BLOCK_COLLAPSED_HEIGHT}px`,
+    overflow: "hidden",
+  }),
+  fadeOverlay: css({
+    position: "absolute",
+    bottom: "28px",
+    left: 0,
+    right: 0,
+    height: "40px",
+    background:
+      "linear-gradient(to bottom, transparent 0%, token(colors.bg.subtle) 100%)",
+    pointerEvents: "none",
+  }),
+  expandButton: css({
+    width: "100%",
+    py: 1.5,
+    px: 4,
+    bg: "transparent",
+    border: "none",
+    cursor: "pointer",
+    fontSize: "xs",
+    color: "fg.muted",
+    textAlign: "center",
+    fontFamily: "sans",
+    _hover: {
+      color: "fg.default",
+      textDecoration: "underline",
+    },
   }),
   inlineCode: css({
     fontFamily: "mono",
@@ -101,12 +138,48 @@ export const markdownComponents = {
 
   pre: (preProps) => {
     const [local, rest] = splitProps(preProps, ["node", "children", "class"]);
-    // Always render plain pre to avoid SSR hydration mismatch
-    // Code highlighting is applied inside the code element after mount
+    const [isCollapsed, setIsCollapsed] = createSignal(true);
+    const [needsCollapse, setNeedsCollapse] = createSignal(false);
+    let preRef: HTMLPreElement | undefined;
+
+    onMount(() => {
+      if (!preRef) return;
+      // Check if content exceeds the collapse threshold
+      const contentHeight = preRef.scrollHeight;
+      if (contentHeight > CODE_BLOCK_COLLAPSED_HEIGHT) {
+        setNeedsCollapse(true);
+      }
+    });
+
+    const handleToggle = () => {
+      setIsCollapsed((prev) => !prev);
+    };
+
+    const preClass = () => {
+      if (needsCollapse() && isCollapsed()) {
+        return `${styles.pre} ${styles.preCollapsed}`;
+      }
+      return styles.pre;
+    };
+
     return (
-      <pre class={styles.pre} {...rest}>
-        {local.children}
-      </pre>
+      <div class={styles.preWrapper}>
+        <pre class={preClass()} {...rest} ref={preRef}>
+          {local.children}
+        </pre>
+        <Show when={needsCollapse() && isCollapsed()}>
+          <div class={styles.fadeOverlay} />
+        </Show>
+        <Show when={needsCollapse()}>
+          <button
+            type="button"
+            class={styles.expandButton}
+            onClick={handleToggle}
+          >
+            {isCollapsed() ? "Show more" : "Show less"}
+          </button>
+        </Show>
+      </div>
     );
   },
 
