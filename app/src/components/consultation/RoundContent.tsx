@@ -78,14 +78,20 @@ export function RoundContent(props: RoundContentProps) {
   };
 
   const getAnswer = (questionId: string) => {
-    // If the round has submitted answers, use those
-    if (props.round.answers && props.round.answers.length > 0) {
-      return props.round.answers.find((a) => a.questionId === questionId);
+    const roundAnswers = props.round.answers ?? [];
+    const localAnswers = ctx.answers ?? [];
+
+    if (props.isLastRound) {
+      const local = localAnswers.find((a) => a.questionId === questionId);
+      if (local) return local;
+      if (roundAnswers.length > 0) {
+        return roundAnswers.find((a) => a.questionId === questionId);
+      }
+      return undefined;
     }
 
-    // If this is the current round (last round), use the current answers from context
-    if (props.isLastRound) {
-      return ctx.answers.find((a) => a.questionId === questionId);
+    if (roundAnswers.length > 0) {
+      return roundAnswers.find((a) => a.questionId === questionId);
     }
 
     return undefined;
