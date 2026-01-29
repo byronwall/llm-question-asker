@@ -21,6 +21,7 @@ import {
   createSession,
   deleteQuestion,
   getSession,
+  saveAnswers,
   submitAnswers,
 } from "~/server/actions";
 import { createDummySession } from "~/server/actions-dev-only";
@@ -48,6 +49,7 @@ export type ConsultationController = {
   handleCreateNextRound: () => Promise<void>;
   handleAddMoreQuestions: () => Promise<void>;
   handleDeleteQuestion: (questionId: string) => Promise<void>;
+  handlePersistAnswers: (nextAnswers?: Answer[]) => Promise<void>;
   setSessionId: (id: string) => void;
   focusDialogState: FocusDialogState;
   setFocusDialogState: SetStoreFunction<FocusDialogState>;
@@ -138,6 +140,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
   const runCreateNextRound = useAction(createNextRound);
   const runAddMoreQuestions = useAction(addMoreQuestions);
   const runDeleteQuestion = useAction(deleteQuestion);
+  const runSaveAnswers = useAction(saveAnswers);
 
   const sessionActiveJobs = createMemo(() => {
     if (!props.sessionId) return [];
@@ -155,6 +158,42 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     const round = currentRound();
     if (!round) return false;
     return round.answers.length === round.questions.length;
+  };
+
+  const mergeAnswers = (base: Answer[], local: Answer[]) => {
+    const merged = new Map<string, Answer>();
+    base.forEach((answer) => merged.set(answer.questionId, answer));
+    local.forEach((answer) => merged.set(answer.questionId, answer));
+    return [
+      ...base.map((answer) => merged.get(answer.questionId)!),
+      ...local.filter((answer) => !base.some((b) => b.questionId === answer.questionId)),
+    ];
+  };
+
+  const handlePersistAnswers = async (nextAnswers?: Answer[]) => {
+    const session = sessionData();
+    if (!session) return;
+    const roundAnswers = currentRound()?.answers ?? [];
+    const localAnswers = nextAnswers ?? [...answers];
+    const payload = mergeAnswers(roundAnswers, localAnswers);
+    console.log("ConsultationProvider:handlePersistAnswers", {
+      sessionId: session.id,
+      answerCount: payload.length,
+    });
+    try {
+      await runSaveAnswers({
+        sessionId: session.id,
+        answers: payload,
+      });
+    } catch (error) {
+      console.error("ConsultationProvider:handlePersistAnswers:error", error);
+      toaster.create({
+        title: "Failed to save answers",
+        description: "Your inputs are saved locally. Please try again.",
+        type: "error",
+        duration: 4000,
+      });
+    }
   };
 
   const startJobTracking = (jobId: string, onComplete: (job: Job) => void) => {
@@ -241,23 +280,27 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     );
 
     const existing = answers.find((a) => a.questionId === questionId);
+    let nextAnswers: Answer[];
     if (!existing) {
-      setAnswers([
+      nextAnswers = [
         ...answers,
         { questionId, selectedOptionIds: [optionId], customInput: null },
-      ]);
+      ];
     } else {
       const isSelected = existing.selectedOptionIds.includes(optionId);
       const newOptions = isSelected
         ? existing.selectedOptionIds.filter((id) => id !== optionId)
         : [...existing.selectedOptionIds, optionId];
 
-      setAnswers(
-        (a) => a.questionId === questionId,
-        "selectedOptionIds",
-        newOptions
+      nextAnswers = answers.map((item) =>
+        item.questionId === questionId
+          ? { ...item, selectedOptionIds: newOptions }
+          : item
       );
     }
+
+    setAnswers(nextAnswers);
+    void handlePersistAnswers(nextAnswers);
   };
 
   const handleCustomInput = (questionId: string, value: string) => {
@@ -449,6 +492,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     handleCreateNextRound,
     handleAddMoreQuestions,
     handleDeleteQuestion,
+    handlePersistAnswers,
     setSessionId: props.setSessionId,
     focusDialogState,
     setFocusDialogState,
@@ -508,6 +552,18 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
       sessionId: props.sessionId,
     });
     revalidate(getSession.key);
+  });
+
+  createEffect(() => {
+    const round = currentRound();
+    if (!round) return;
+    if (answers.length > 0) return;
+    if (round.answers.length === 0) return;
+    console.log("ConsultationProvider:seedAnswersFromSession", {
+      roundId: round.id,
+      answerCount: round.answers.length,
+    });
+    setAnswers([...round.answers]);
   });
 
   createEffect(() => {

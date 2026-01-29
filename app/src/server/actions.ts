@@ -402,6 +402,35 @@ export const addMoreQuestions = action(
   "session:addMoreQuestions"
 );
 
+export const saveAnswers = action(
+  async (input: { sessionId: string; answers: Answer[] }) => {
+    "use server";
+    console.log("actions:saveAnswers", {
+      sessionId: input.sessionId,
+      answerCount: input.answers.length,
+    });
+
+    const database = db();
+    const session = await database.getSession(input.sessionId);
+    if (!session) throw new Error("Session not found");
+
+    const rounds = [...session.rounds];
+    const currentRoundIndex = rounds.length - 1;
+    if (currentRoundIndex < 0) throw new Error("No rounds found");
+    const currentRound = rounds[currentRoundIndex];
+
+    currentRound.answers = input.answers;
+    await database.updateSession(input.sessionId, { rounds });
+    console.log("actions:saveAnswers:completed", {
+      sessionId: input.sessionId,
+      answerCount: input.answers.length,
+    });
+
+    return { success: true };
+  },
+  "session:saveAnswers"
+);
+
 async function processAddMoreQuestions(
   jobId: string,
   sessionId: string,

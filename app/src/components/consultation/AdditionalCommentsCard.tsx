@@ -7,12 +7,17 @@ type AdditionalCommentsCardProps = {
   value: string;
   disabled: boolean;
   onChange: (value: string) => void;
+  onBlur: () => void;
 };
 
 export function AdditionalCommentsCard(props: AdditionalCommentsCardProps) {
   const handleInput = (event: InputEvent) => {
     const target = event.currentTarget as HTMLTextAreaElement;
     props.onChange(target.value);
+  };
+
+  const handleBlur = () => {
+    props.onBlur();
   };
 
   return (
@@ -24,6 +29,7 @@ export function AdditionalCommentsCard(props: AdditionalCommentsCardProps) {
           placeholder="Share any extra details..."
           value={props.value}
           onInput={handleInput}
+          onBlur={handleBlur}
           disabled={props.disabled}
         />
       </Field.Root>

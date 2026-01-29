@@ -142,6 +142,11 @@ export function RoundContent(props: RoundContentProps) {
     ctx.handleCustomInput(ADDITIONAL_COMMENTS_QUESTION_ID, value);
   };
   const handleAdditionalCommentsReadonlyChange = (_value: string) => {};
+  const handleAdditionalCommentsBlur = () => {
+    if (!props.isLastRound) return;
+    void ctx.handlePersistAnswers();
+  };
+  const handleAdditionalCommentsReadonlyBlur = () => {};
 
   const handleExportRound = () => {
     console.log("RoundContent:handleExportRound");
@@ -279,6 +284,7 @@ export function RoundContent(props: RoundContentProps) {
               value={additionalCommentsValue()}
               disabled={!props.isLastRound}
               onChange={handleAdditionalCommentsChange}
+              onBlur={handleAdditionalCommentsBlur}
             />
           </Show>
         </Stack>
@@ -358,6 +364,7 @@ export function RoundContent(props: RoundContentProps) {
           value={additionalCommentsValue()}
           disabled={true}
           onChange={handleAdditionalCommentsReadonlyChange}
+          onBlur={handleAdditionalCommentsReadonlyBlur}
         />
       </Show>
     </Stack>

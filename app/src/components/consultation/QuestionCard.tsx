@@ -52,6 +52,11 @@ export function QuestionCard(props: QuestionCardProps) {
     ctx.handleCustomInput(props.question.id, value);
   };
 
+  const handleCustomInputBlur = () => {
+    console.log("QuestionCard:handleCustomInputBlur", props.question.id);
+    void ctx.handlePersistAnswers();
+  };
+
   const handleDelete = () => {
     console.log("QuestionCard:handleDelete", props.question.id);
     if (!props.disabled) {
@@ -121,6 +126,7 @@ export function QuestionCard(props: QuestionCardProps) {
             placeholder="Other (please specify)..."
             value={customInputValue()}
             onInput={(e) => handleCustomInputChange(e.currentTarget.value)}
+            onBlur={handleCustomInputBlur}
             disabled={props.disabled}
           />
         </Box>
