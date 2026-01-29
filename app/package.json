@@ -6,7 +6,7 @@
     "dev": "pnpm prepare && vinxi dev",
     "build": "vinxi build",
     "start": "vinxi start",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit && echo 'Type check passed!'"
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.0.0",

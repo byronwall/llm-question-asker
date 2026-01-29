@@ -14,6 +14,7 @@ type QuestionCardProps = {
   answer: Answer | undefined;
   disabled: boolean;
   hasResult: boolean;
+  position: number;
 };
 
 function getQuestionTypeLabel(type: QuestionType): string {
@@ -66,9 +67,12 @@ export function QuestionCard(props: QuestionCardProps) {
 
   return (
     <Stack gap="4">
-      <HStack justifyContent="space-between" alignItems="flex-start">
-        <Stack gap="2" flex="1">
-          <HStack gap="2" alignItems="center">
+      <Stack gap="2">
+        <HStack gap="4" alignItems="flex-end" justifyContent="space-between">
+          <HStack gap="2" alignItems="flex-end" minW="12">
+            <Text fontSize="3xl" fontWeight="bold" lineHeight="1">
+              {props.position}
+            </Text>
             <Badge size="sm" variant="subtle">
               {getQuestionTypeLabel(props.question.type)}
             </Badge>
@@ -89,9 +93,9 @@ export function QuestionCard(props: QuestionCardProps) {
               </IconButton>
             </Show>
           </HStack>
-          <Text fontWeight="bold">{props.question.text}</Text>
-        </Stack>
-      </HStack>
+        </HStack>
+        <Text fontWeight="bold">{props.question.text}</Text>
+      </Stack>
       <Stack gap="2">
         <For each={props.question.options}>
           {(option) => {

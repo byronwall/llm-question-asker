@@ -1,5 +1,6 @@
-import { Stack } from "styled-system/jsx";
+import { HStack, Stack } from "styled-system/jsx";
 import * as Field from "~/components/ui/field";
+import { Text } from "~/components/ui/text";
 import { Textarea } from "~/components/ui/textarea";
 
 type AdditionalCommentsCardProps = {
@@ -23,7 +24,14 @@ export function AdditionalCommentsCard(props: AdditionalCommentsCardProps) {
   return (
     <Stack gap="2">
       <Field.Root>
-        <Field.Label fontWeight="bold">{props.label}</Field.Label>
+        <Field.Label>
+          <HStack gap="2" alignItems="flex-end">
+            <Text fontSize="3xl" fontWeight="bold" lineHeight="1">
+              +1
+            </Text>
+            <Text fontWeight="bold">{props.label}</Text>
+          </HStack>
+        </Field.Label>
         <Textarea
           autoresize
           placeholder="Share any extra details..."

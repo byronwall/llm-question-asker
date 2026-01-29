@@ -263,10 +263,11 @@ export function RoundContent(props: RoundContentProps) {
       >
         <Stack gap="8">
           <For each={props.round.questions}>
-            {(question) => {
+            {(question, index) => {
               const questionId = () => question.id;
               const answer = () => getAnswer(questionId());
               const disabled = () => !props.isLastRound;
+              const position = () => index() + 1;
 
               return (
                 <QuestionCard
@@ -274,6 +275,7 @@ export function RoundContent(props: RoundContentProps) {
                   answer={answer()}
                   disabled={disabled()}
                   hasResult={hasResult()}
+                  position={position()}
                 />
               );
             }}
@@ -343,10 +345,11 @@ export function RoundContent(props: RoundContentProps) {
   const renderQuestionsReviewBody = () => (
     <Stack gap="8">
       <For each={props.round.questions}>
-        {(question) => {
+        {(question, index) => {
           const questionId = () => question.id;
           const answer = () => getAnswer(questionId());
           const disabled = () => true;
+          const position = () => index() + 1;
 
           return (
             <QuestionCard
@@ -354,6 +357,7 @@ export function RoundContent(props: RoundContentProps) {
               answer={answer()}
               disabled={disabled()}
               hasResult={hasResult()}
+              position={position()}
             />
           );
         }}
