@@ -1,6 +1,6 @@
 import { action, query } from "@solidjs/router";
 
-import type { Answer, Session } from "~/lib/domain";
+import type { Answer, Session, Question } from "~/lib/domain";
 import {
   ADDITIONAL_COMMENTS_QUESTION_ID,
   ADDITIONAL_COMMENTS_QUESTION_LABEL,
@@ -32,6 +32,29 @@ function formatAdditionalCommentsAnswer(answers: Answer[]) {
   return `Q: ${ADDITIONAL_COMMENTS_QUESTION_LABEL}\nA: ${answerText}`;
 }
 
+function formatRoundQaPairs(
+  questions: Question[],
+  answers: Answer[],
+  emptyLabel: string
+) {
+  return questions.map((q) => {
+    const answer = answers.find((a) => a.questionId === q.id);
+    if (!answer) return `Q: ${q.text}\nA: ${emptyLabel}`;
+
+    const selectedTexts = q.options
+      .filter((opt) => answer.selectedOptionIds.includes(opt.id))
+      .map((opt) => opt.text);
+
+    if (answer.customInput) {
+      selectedTexts.push(`Custom: ${answer.customInput}`);
+    }
+
+    const answerText =
+      selectedTexts.length > 0 ? selectedTexts.join(", ") : emptyLabel;
+    return `Q: ${q.text}\nA: ${answerText}`;
+  });
+}
+
 function formatSessionHistory(session: Session) {
   const segments: string[] = [];
 
@@ -46,23 +69,11 @@ function formatSessionHistory(session: Session) {
   segments.push(`Original prompt: ${session.prompt}`);
 
   session.rounds.forEach((round, index) => {
-    const qaPairs = round.questions.map((q) => {
-      const answer = round.answers.find((a) => a.questionId === q.id);
-      if (!answer) return `Q: ${q.text}\nA: (Skipped)`;
-
-      const selectedTexts = q.options
-        .filter((opt) => answer.selectedOptionIds.includes(opt.id))
-        .map((opt) => opt.text);
-
-      if (answer.customInput) {
-        selectedTexts.push(`Custom: ${answer.customInput}`);
-      }
-
-      const answerText =
-        selectedTexts.length > 0 ? selectedTexts.join(", ") : "(Skipped)";
-
-      return `Q: ${q.text}\nA: ${answerText}`;
-    });
+    const qaPairs = formatRoundQaPairs(
+      round.questions,
+      round.answers,
+      "(Skipped)"
+    );
     const additionalComments = formatAdditionalCommentsAnswer(round.answers);
     if (additionalComments) {
       qaPairs.push(additionalComments);
@@ -218,27 +229,19 @@ async function processSubmitAnswers(
     let history = "";
     for (const r of rounds) {
       const rAnswers = r === currentRound ? answers : r.answers;
-      const qaPairs = r.questions.map((q) => {
-        const answer = rAnswers.find((a) => a.questionId === q.id);
-        if (!answer) return `Q: ${q.text}\nA: (Skipped)`;
-
-        const selectedTexts = q.options
-          .filter((opt) => answer.selectedOptionIds.includes(opt.id))
-          .map((opt) => opt.text);
-
-        if (answer.customInput) {
-          selectedTexts.push(`Custom: ${answer.customInput}`);
-        }
-
-        const answerText =
-          selectedTexts.length > 0 ? selectedTexts.join(", ") : "(Skipped)";
-        return `Q: ${q.text}\nA: ${answerText}`;
-      });
+      const qaPairs = formatRoundQaPairs(
+        r.questions,
+        rAnswers,
+        "(Skipped)"
+      );
       const additionalComments = formatAdditionalCommentsAnswer(rAnswers);
       if (additionalComments) {
         qaPairs.push(additionalComments);
       }
       history += `Round ${r.id}:\n${qaPairs.join("\n\n")}\n\n`;
+      if (r.result) {
+        history += `Recommendation:\n${r.result}\n\n`;
+      }
     }
 
     console.log("processSubmitAnswers:generate", { jobId });
@@ -318,22 +321,11 @@ async function processCreateNextRound(
     let history = "";
     for (const r of session.rounds) {
       if (r.id === roundId) continue;
-      const qaPairs = r.questions.map((q) => {
-        const answer = r.answers.find((a) => a.questionId === q.id);
-        if (!answer) return `Q: ${q.text}\nA: (Skipped)`;
-
-        const selectedTexts = q.options
-          .filter((opt) => answer.selectedOptionIds.includes(opt.id))
-          .map((opt) => opt.text);
-
-        if (answer.customInput) {
-          selectedTexts.push(`Custom: ${answer.customInput}`);
-        }
-
-        const answerText =
-          selectedTexts.length > 0 ? selectedTexts.join(", ") : "(Skipped)";
-        return `Q: ${q.text}\nA: ${answerText}`;
-      });
+      const qaPairs = formatRoundQaPairs(
+        r.questions,
+        r.answers,
+        "(Skipped)"
+      );
       const additionalComments = formatAdditionalCommentsAnswer(r.answers);
       if (additionalComments) {
         qaPairs.push(additionalComments);
@@ -478,7 +470,38 @@ async function processAddMoreQuestions(
     }
     const qaPairsText = qaPairs.join("\n\n");
 
-    const history = `Existing questions in this round (do NOT duplicate or rephrase these - generate completely new, orthogonal questions that explore different aspects):\n\n${qaPairsText}\n\nGenerate additional questions that cover NEW topics, perspectives, or considerations not already addressed by the existing questions.`;
+    const priorRounds = session.rounds
+      .filter((round) => round.id !== currentRound.id)
+      .map((round) => {
+        const roundPairs = formatRoundQaPairs(
+          round.questions,
+          round.answers,
+          "(Skipped)"
+        );
+        const comments = formatAdditionalCommentsAnswer(round.answers);
+        if (comments) {
+          roundPairs.push(comments);
+        }
+        const sections = [`Round ${round.id}:`, roundPairs.join("\n\n")];
+        if (round.result) {
+          sections.push(`Recommendation:\n${round.result}`);
+        }
+        return sections.join("\n");
+      })
+      .join("\n\n");
+
+    const historySegments = [
+      "Existing questions in this round (do NOT duplicate or rephrase these - generate completely new, orthogonal questions that explore different aspects):",
+      "",
+      qaPairsText,
+      "",
+      "Prior rounds context (questions, answers, and recommendations):",
+      priorRounds || "(None)",
+      "",
+      "Generate additional questions that cover NEW topics, perspectives, or considerations not already addressed by the existing questions.",
+    ];
+
+    const history = historySegments.join("\n");
 
     console.log("processAddMoreQuestions:generate", { jobId });
     await jobs.updateJobStage(jobId, "generate");

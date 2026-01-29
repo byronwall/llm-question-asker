@@ -51,7 +51,19 @@ export async function generateQuestions(
   });
 
   const contextPrompt = history
-    ? `Previous conversation history:\n${history}\n\nBased on this history, ask deeper follow-up questions.`
+    ? [
+        "Full conversation context (questions, answers, prior responses, and any user guidance):",
+        history,
+        "",
+        "This is a follow-up round. Your questions MUST be more focused and intentional than the initial set.",
+        "Use ALL context to identify gaps, uncertainties, contradictions, and the user's explicit requests.",
+        "Prioritize questions that:",
+        "- Clarify ambiguous or missing details that block a confident recommendation.",
+        "- Resolve conflicts between earlier answers and the current goal.",
+        "- Directly respond to the user's stated questions or feedback.",
+        "- Produce NEW information not already captured.",
+        "Avoid generic or broad questions already answered or implied by prior context.",
+      ].join("\n")
     : "Generate probing multiple-choice questions to better understand their needs and provide a tailored solution.";
 
   const { object } = await generateObject({
@@ -67,6 +79,8 @@ export async function generateQuestions(
       "Generate 10 distinct questions with three types:",
       "",
       "IMPORTANT: Users may skip questions they don't want to answer or delete questions that aren't relevant to them. Design questions that are helpful but not mandatory.",
+      "When prior context exists, make the questions tighter, more specific, and clearly tied to that context.",
+      "Each question should add incremental clarity rather than restart discovery.",
       "",
       "TYPE 1 - goal_discovery (1-2 questions):",
       "Questions that probe for the user's ultimate objective or underlying goal.",
@@ -114,6 +128,9 @@ export async function generateResult(
       history,
       "",
       "Based on this information, provide a comprehensive, structured, and helpful response/solution.",
+      "Use ALL available context, including prior recommendations and the user's follow-up answers or feedback.",
+      "If this is a later-round response, ensure it is more nuanced and clearly influenced by what changed.",
+      "Address the user's explicit questions or concerns and explain how new information affected the outcome.",
       "Use markdown formatting.",
       "",
       "IMPORTANT: Do NOT ask questions at the end of your response.",
