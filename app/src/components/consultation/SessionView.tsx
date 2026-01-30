@@ -20,6 +20,7 @@ import {
   downloadMarkdown,
   sanitizeFilename,
 } from "~/lib/markdown-export";
+import { downloadJson } from "~/lib/json-export";
 
 import { useConsultation } from "./consultation-context";
 import { useJobs } from "~/components/jobs/job-context";
@@ -80,6 +81,17 @@ export function SessionView() {
     if (!session) return "";
 
     return exportSessionAsMarkdown(session);
+  };
+
+  const handleDownloadJson = () => {
+    console.log("SessionView:handleDownloadJson");
+    const session = ctx.sessionData();
+    if (!session) return;
+
+    const sessionTitle = session.title || `Session ${session.id.slice(0, 8)}`;
+    const filename = sanitizeFilename(`${SITE_NAME} - ${sessionTitle}.json`);
+    const payload = JSON.stringify(session, null, 2);
+    downloadJson(payload, filename);
   };
 
   createEffect(() => {
@@ -189,6 +201,7 @@ export function SessionView() {
                 showPromptTrigger={showPromptTriggerInHeader()}
                 onBackClick={handleBackClick}
                 onExport={handleExportSession}
+                onDownloadJson={handleDownloadJson}
                 onCopy={handleCopySession}
               />
 

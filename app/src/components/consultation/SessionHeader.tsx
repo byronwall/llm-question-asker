@@ -27,6 +27,7 @@ type SessionHeaderProps = {
   showPromptTrigger?: boolean;
   onBackClick: () => void;
   onExport?: () => void;
+  onDownloadJson?: () => void;
   onCopy?: () => Promise<string>;
 };
 
@@ -53,6 +54,11 @@ export function SessionHeader(props: SessionHeaderProps) {
   const handleExport = () => {
     console.log("SessionHeader:handleExport");
     props.onExport?.();
+  };
+
+  const handleDownloadJson = () => {
+    console.log("SessionHeader:handleDownloadJson");
+    props.onDownloadJson?.();
   };
 
   const handleCopy = async () => {
@@ -133,6 +139,8 @@ export function SessionHeader(props: SessionHeaderProps) {
   const showPromptInline = () => !props.title || !props.description;
   const showPromptTrigger = () =>
     !showPromptInline() && props.showPromptTrigger;
+  const hasMenuActions = () =>
+    !!props.onCopy || !!props.onExport || !!props.onDownloadJson;
 
   return (
     <>
@@ -141,7 +149,7 @@ export function SessionHeader(props: SessionHeaderProps) {
           <Button variant="outline" onClick={handleBackClick}>
             ← Back to Sessions
           </Button>
-          <Show when={props.onExport}>
+          <Show when={hasMenuActions()}>
             <Menu.Root size="sm">
               <Menu.Trigger
                 asChild={(triggerProps) => (
@@ -174,6 +182,17 @@ export function SessionHeader(props: SessionHeaderProps) {
                       <Box>Export as Markdown</Box>
                     </HStack>
                   </Menu.Item>
+                  <Show when={props.onDownloadJson}>
+                    <Menu.Item
+                      value="download-json"
+                      onSelect={handleDownloadJson}
+                    >
+                      <HStack gap="2" alignItems="center">
+                        <DownloadIcon />
+                        <Box>Download raw JSON</Box>
+                      </HStack>
+                    </Menu.Item>
+                  </Show>
                   <Menu.Separator />
                   <Menu.Item
                     value="delete"
