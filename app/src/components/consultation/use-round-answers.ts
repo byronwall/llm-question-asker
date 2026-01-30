@@ -15,9 +15,17 @@ export function useRoundAnswers(): RoundAnswersState {
   const ctx = useConsultation();
   const content = useRoundContent();
 
+  const filterAnswersForRound = (list: Answer[]) => {
+    const allowed = new Set<string>([
+      ...content.round().questions.map((question) => question.id),
+      ADDITIONAL_COMMENTS_QUESTION_ID,
+    ]);
+    return list.filter((answer) => allowed.has(answer.questionId));
+  };
+
   const getAnswer = (questionId: string) => {
-    const roundAnswers = content.round().answers ?? [];
-    const localAnswers = ctx.answers ?? [];
+    const roundAnswers = filterAnswersForRound(content.round().answers ?? []);
+    const localAnswers = filterAnswersForRound(ctx.answers ?? []);
 
     if (content.isLastRound()) {
       const local = localAnswers.find((answer) => answer.questionId === questionId);

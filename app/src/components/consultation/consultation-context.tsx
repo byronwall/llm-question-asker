@@ -15,6 +15,7 @@ import { createAsync, revalidate, useAction } from "@solidjs/router";
 
 import type { Answer, Round, Session } from "~/lib/domain";
 import type { Job } from "~/lib/job-types";
+import { ADDITIONAL_COMMENTS_QUESTION_ID } from "~/lib/consultation-constants";
 import {
   addMoreQuestions,
   createNextRound,
@@ -173,11 +174,22 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     ];
   };
 
+  const filterAnswersForRound = (round: Round | null, list: Answer[]) => {
+    if (!round) return [];
+    const allowed = new Set<string>([
+      ...round.questions.map((question) => question.id),
+      ADDITIONAL_COMMENTS_QUESTION_ID,
+    ]);
+    return list.filter((answer) => allowed.has(answer.questionId));
+  };
+
   const handlePersistAnswers = async (nextAnswers?: Answer[]) => {
     const session = sessionData();
     if (!session) return;
-    const roundAnswers = currentRound()?.answers ?? [];
-    const localAnswers = nextAnswers ?? [...answers];
+    const round = currentRound();
+    if (!round) return;
+    const roundAnswers = filterAnswersForRound(round, round.answers ?? []);
+    const localAnswers = filterAnswersForRound(round, nextAnswers ?? [...answers]);
     const payload = mergeAnswers(roundAnswers, localAnswers);
     console.log("ConsultationProvider:handlePersistAnswers", {
       sessionId: session.id,
@@ -328,13 +340,15 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     console.log("ConsultationProvider:handleSubmitRound");
     const session = sessionData();
     if (!session) return;
+    const round = currentRound();
+    if (!round) return;
 
     resetFocusDialogState();
     setIsSubmitting(true);
     try {
       const result = await runSubmitAnswers({
         sessionId: session.id,
-        answers: [...answers],
+        answers: filterAnswersForRound(round, [...answers]),
       });
       console.log("ConsultationProvider:handleSubmitRound:jobCreated", {
         jobId: result.jobId,
@@ -416,12 +430,14 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     console.log("ConsultationProvider:handleAddMoreQuestions");
     const session = sessionData();
     if (!session) return;
+    const round = currentRound();
+    if (!round) return;
 
     setIsSubmitting(true);
     try {
       const result = await runAddMoreQuestions({
         sessionId: session.id,
-        answers: [...answers],
+        answers: filterAnswersForRound(round, [...answers]),
       });
       console.log("ConsultationProvider:handleAddMoreQuestions:jobCreated", {
         jobId: result.jobId,
@@ -567,7 +583,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     });
     batch(() => {
       setLastRoundId(round.id);
-      setAnswers([...round.answers]);
+      setAnswers(filterAnswersForRound(round, [...round.answers]));
     });
   });
 
