@@ -90,6 +90,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     ((job: Job) => void) | null
   >(null);
   const [lastSessionJobIds, setLastSessionJobIds] = createSignal<string[]>([]);
+  const [lastRoundId, setLastRoundId] = createSignal<string | null>(null);
   const [focusDialogState, setFocusDialogState] = createStore<FocusDialogState>(
     {
       isOpen: false,
@@ -166,7 +167,9 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     local.forEach((answer) => merged.set(answer.questionId, answer));
     return [
       ...base.map((answer) => merged.get(answer.questionId)!),
-      ...local.filter((answer) => !base.some((b) => b.questionId === answer.questionId)),
+      ...local.filter(
+        (answer) => !base.some((b) => b.questionId === answer.questionId)
+      ),
     ];
   };
 
@@ -557,13 +560,15 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
   createEffect(() => {
     const round = currentRound();
     if (!round) return;
-    if (answers.length > 0) return;
-    if (round.answers.length === 0) return;
-    console.log("ConsultationProvider:seedAnswersFromSession", {
+    if (round.id === lastRoundId()) return;
+    console.log("ConsultationProvider:roundChanged", {
       roundId: round.id,
       answerCount: round.answers.length,
     });
-    setAnswers([...round.answers]);
+    batch(() => {
+      setLastRoundId(round.id);
+      setAnswers([...round.answers]);
+    });
   });
 
   createEffect(() => {

@@ -1,4 +1,5 @@
 import { generateObject, generateText } from "ai";
+import crypto from "node:crypto";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import type { Question } from "~/lib/domain";
@@ -108,7 +109,15 @@ export async function generateQuestions(
     ].join("\n"),
   });
 
-  return object.questions;
+  return object.questions.map((question) => ({
+    id: crypto.randomUUID(),
+    text: question.text,
+    type: question.type,
+    options: question.options.map((option) => ({
+      id: crypto.randomUUID(),
+      text: option.text,
+    })),
+  }));
 }
 
 export async function generateResult(
