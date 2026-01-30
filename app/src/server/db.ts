@@ -30,7 +30,7 @@ class JsonDb {
 
   private async writeSessionFile(
     sessionId: string,
-    data: Session
+    data: Session,
   ): Promise<void> {
     const filePath = this.getSessionFilePath(sessionId);
     await mkdir(path.dirname(filePath), { recursive: true });
@@ -39,7 +39,7 @@ class JsonDb {
 
   private async mutateSession<T>(
     sessionId: string,
-    fn: (data: Session) => T | Promise<T>
+    fn: (data: Session) => T | Promise<T>,
   ): Promise<T> {
     let result!: T;
     this.writeQueue = this.writeQueue.then(async () => {
@@ -75,7 +75,7 @@ class JsonDb {
 
   async updateSession(
     sessionId: string,
-    patch: Partial<Pick<Session, "rounds" | "title" | "description">>
+    patch: Partial<Pick<Session, "rounds" | "title" | "description">>,
   ): Promise<Session> {
     return this.mutateSession(sessionId, (session) => {
       Object.assign(session, patch);

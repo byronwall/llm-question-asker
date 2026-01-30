@@ -1,4 +1,11 @@
-import { createSignal, createMemo, onMount, onCleanup, For, Show } from "solid-js";
+import {
+  createSignal,
+  createMemo,
+  onMount,
+  onCleanup,
+  For,
+  Show,
+} from "solid-js";
 import { css } from "styled-system/css";
 import { Box, Stack } from "styled-system/jsx";
 
@@ -65,7 +72,9 @@ export function TableOfContents(props: TableOfContentsProps) {
     const container = props.contentRef;
     if (!container) return;
 
-    const headingElements = container.querySelectorAll("h1, h2, h3, h4, h5, h6");
+    const headingElements = container.querySelectorAll(
+      "h1, h2, h3, h4, h5, h6",
+    );
     const slugCounts = new Map<string, number>();
 
     headingElements.forEach((el) => {
@@ -104,10 +113,16 @@ export function TableOfContents(props: TableOfContentsProps) {
       const contentHeight = rect.height;
 
       // Calculate what percentage of content is above viewport
-      const topPercent = Math.max(0, Math.min(100, (-contentTop / contentHeight) * 100));
+      const topPercent = Math.max(
+        0,
+        Math.min(100, (-contentTop / contentHeight) * 100),
+      );
       // Calculate what percentage of content is visible
       const visibleBottom = Math.min(vh - contentTop, contentHeight);
-      const bottomPercent = Math.max(0, Math.min(100, (visibleBottom / contentHeight) * 100));
+      const bottomPercent = Math.max(
+        0,
+        Math.min(100, (visibleBottom / contentHeight) * 100),
+      );
 
       setViewportTop(topPercent);
       setViewportBottom(bottomPercent);

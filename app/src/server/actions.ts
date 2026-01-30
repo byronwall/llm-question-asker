@@ -23,7 +23,7 @@ export type GenerateFocusedPromptResult = { prompt: string };
 
 function formatAdditionalCommentsAnswer(answers: Answer[]) {
   const answer = answers.find(
-    (item) => item.questionId === ADDITIONAL_COMMENTS_QUESTION_ID
+    (item) => item.questionId === ADDITIONAL_COMMENTS_QUESTION_ID,
   );
   if (!answer) return null;
 
@@ -35,7 +35,7 @@ function formatAdditionalCommentsAnswer(answers: Answer[]) {
 function formatRoundQaPairs(
   questions: Question[],
   answers: Answer[],
-  emptyLabel: string
+  emptyLabel: string,
 ) {
   return questions.map((q) => {
     const answer = answers.find((a) => a.questionId === q.id);
@@ -72,7 +72,7 @@ function formatSessionHistory(session: Session) {
     const qaPairs = formatRoundQaPairs(
       round.questions,
       round.answers,
-      "(Skipped)"
+      "(Skipped)",
     );
     const additionalComments = formatAdditionalCommentsAnswer(round.answers);
     if (additionalComments) {
@@ -129,7 +129,7 @@ export const generateSessionPrompt = action(
 
     return { prompt } as GenerateFocusedPromptResult;
   },
-  "session:generateSessionPrompt"
+  "session:generateSessionPrompt",
 );
 
 async function processCreateSession(jobId: string, sessionId: string) {
@@ -195,18 +195,18 @@ export const submitAnswers = action(
     processSubmitAnswers(job.id, input.sessionId, input.answers).catch(
       (err) => {
         console.error("actions:submitAnswers:background error", err);
-      }
+      },
     );
 
     return { jobId: job.id } as SubmitAnswersResult;
   },
-  "session:submitAnswers"
+  "session:submitAnswers",
 );
 
 async function processSubmitAnswers(
   jobId: string,
   sessionId: string,
-  answers: Answer[]
+  answers: Answer[],
 ) {
   const jobs = jobsDb();
   const database = db();
@@ -229,11 +229,7 @@ async function processSubmitAnswers(
     let history = "";
     for (const r of rounds) {
       const rAnswers = r === currentRound ? answers : r.answers;
-      const qaPairs = formatRoundQaPairs(
-        r.questions,
-        rAnswers,
-        "(Skipped)"
-      );
+      const qaPairs = formatRoundQaPairs(r.questions, rAnswers, "(Skipped)");
       const additionalComments = formatAdditionalCommentsAnswer(rAnswers);
       if (additionalComments) {
         qaPairs.push(additionalComments);
@@ -291,21 +287,21 @@ export const createNextRound = action(
       job.id,
       input.sessionId,
       roundId,
-      input.guidance
+      input.guidance,
     ).catch((err) => {
       console.error("actions:createNextRound:background error", err);
     });
 
     return { jobId: job.id } as CreateNextRoundResult;
   },
-  "session:createNextRound"
+  "session:createNextRound",
 );
 
 async function processCreateNextRound(
   jobId: string,
   sessionId: string,
   roundId: string,
-  guidance?: string
+  guidance?: string,
 ) {
   const jobs = jobsDb();
   const database = db();
@@ -321,11 +317,7 @@ async function processCreateNextRound(
     let history = "";
     for (const r of session.rounds) {
       if (r.id === roundId) continue;
-      const qaPairs = formatRoundQaPairs(
-        r.questions,
-        r.answers,
-        "(Skipped)"
-      );
+      const qaPairs = formatRoundQaPairs(r.questions, r.answers, "(Skipped)");
       const additionalComments = formatAdditionalCommentsAnswer(r.answers);
       if (additionalComments) {
         qaPairs.push(additionalComments);
@@ -386,12 +378,12 @@ export const addMoreQuestions = action(
     processAddMoreQuestions(job.id, input.sessionId, input.answers).catch(
       (err) => {
         console.error("actions:addMoreQuestions:background error", err);
-      }
+      },
     );
 
     return { jobId: job.id } as AddMoreQuestionsResult;
   },
-  "session:addMoreQuestions"
+  "session:addMoreQuestions",
 );
 
 export const saveAnswers = action(
@@ -420,13 +412,13 @@ export const saveAnswers = action(
 
     return { success: true };
   },
-  "session:saveAnswers"
+  "session:saveAnswers",
 );
 
 async function processAddMoreQuestions(
   jobId: string,
   sessionId: string,
-  answers: Answer[]
+  answers: Answer[],
 ) {
   const jobs = jobsDb();
   const database = db();
@@ -476,7 +468,7 @@ async function processAddMoreQuestions(
         const roundPairs = formatRoundQaPairs(
           round.questions,
           round.answers,
-          "(Skipped)"
+          "(Skipped)",
         );
         const comments = formatAdditionalCommentsAnswer(round.answers);
         if (comments) {
@@ -547,10 +539,10 @@ export const deleteQuestion = action(
     const currentRound = rounds[currentRoundIndex];
 
     currentRound.questions = currentRound.questions.filter(
-      (q) => q.id !== input.questionId
+      (q) => q.id !== input.questionId,
     );
     currentRound.answers = currentRound.answers.filter(
-      (a) => a.questionId !== input.questionId
+      (a) => a.questionId !== input.questionId,
     );
 
     await database.updateSession(input.sessionId, { rounds });
@@ -558,7 +550,7 @@ export const deleteQuestion = action(
 
     return { success: true };
   },
-  "session:deleteQuestion"
+  "session:deleteQuestion",
 );
 
 export const deleteSession = action(async (sessionId: string) => {

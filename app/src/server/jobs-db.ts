@@ -62,7 +62,7 @@ class JobsDb {
 
   private async mutateJob<T>(
     jobId: string,
-    fn: (data: Job) => T | Promise<T>
+    fn: (data: Job) => T | Promise<T>,
   ): Promise<T> {
     let result!: T;
     this.writeQueue = this.writeQueue.then(async () => {

@@ -12,7 +12,7 @@ import { SessionList } from "~/components/consultation/SessionList";
 export default function HomeRoute() {
   console.log(
     "HomeRoute component running! Client:",
-    typeof window !== "undefined"
+    typeof window !== "undefined",
   );
 
   createEffect(() => {

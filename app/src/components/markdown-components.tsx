@@ -97,7 +97,7 @@ const styles = {
 function applyShikiHighlighting(
   codeRef: HTMLElement,
   code: string,
-  language: string
+  language: string,
 ) {
   codeToHtml(code, { lang: language, theme: SHIKI_THEME })
     .then((html) => {

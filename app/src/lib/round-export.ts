@@ -11,7 +11,7 @@ type RoundExportPayload = {
 
 export function getRoundNumber(
   session: Session,
-  roundId: string
+  roundId: string,
 ): number | undefined {
   const roundIndex = session.rounds.findIndex((round) => round.id === roundId);
   return roundIndex >= 0 ? roundIndex + 1 : undefined;
@@ -23,13 +23,13 @@ export function getSessionTitle(session: Session): string {
 
 export function buildRoundExportPayload(
   round: Round,
-  session: Session
+  session: Session,
 ): RoundExportPayload {
   const roundNumber = getRoundNumber(session, round.id);
   const sessionTitle = getSessionTitle(session);
   const markdown = exportRoundAsMarkdown(round, roundNumber);
   const filename = sanitizeFilename(
-    `${SITE_NAME} - ${sessionTitle} - Round ${roundNumber ?? "export"}.md`
+    `${SITE_NAME} - ${sessionTitle} - Round ${roundNumber ?? "export"}.md`,
   );
 
   return {

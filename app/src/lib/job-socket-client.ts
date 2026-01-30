@@ -54,7 +54,7 @@ const nextDelay = (attempt: number) => {
 };
 
 export function createJobSocketClient(
-  options: JobSocketClientOptions
+  options: JobSocketClientOptions,
 ): JobSocketClient {
   let socket: WebSocket | null = null;
   let reconnectTimer: number | null = null;

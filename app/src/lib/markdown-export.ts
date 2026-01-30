@@ -5,7 +5,7 @@ import type { Session, Round, Question, Answer } from "./domain";
  */
 export function exportRoundAsMarkdown(
   round: Round,
-  roundNumber?: number
+  roundNumber?: number,
 ): string {
   const parts: string[] = [];
 
@@ -66,8 +66,12 @@ export function exportSessionAsMarkdown(session: Session): string {
   // Metadata
   parts.push("\n---\n");
   parts.push("## Session Information\n");
-  parts.push(`- **Created:** ${new Date(session.createdAt).toLocaleString()}\n`);
-  parts.push(`- **Updated:** ${new Date(session.updatedAt).toLocaleString()}\n`);
+  parts.push(
+    `- **Created:** ${new Date(session.createdAt).toLocaleString()}\n`,
+  );
+  parts.push(
+    `- **Updated:** ${new Date(session.updatedAt).toLocaleString()}\n`,
+  );
   parts.push(`- **Total Rounds:** ${session.rounds.length}\n`);
 
   return parts.join("\n");
@@ -110,7 +114,7 @@ function formatRound(round: Round, roundNumber: number): string {
 function formatQuestionAndAnswer(
   question: Question,
   answer: Answer | undefined,
-  questionNumber: number
+  questionNumber: number,
 ): string {
   const parts: string[] = [];
 

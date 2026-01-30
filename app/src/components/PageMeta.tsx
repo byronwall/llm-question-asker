@@ -1,8 +1,5 @@
 import { Meta, Title } from "@solidjs/meta";
-import {
-  getDefaultMetadata,
-  type PageMetadata,
-} from "~/lib/site-meta";
+import { getDefaultMetadata, type PageMetadata } from "~/lib/site-meta";
 
 type Props = PageMetadata;
 

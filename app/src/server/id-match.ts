@@ -1,6 +1,6 @@
 export function resolveIdLikeGitHash(
   input: string,
-  candidates: readonly string[]
+  candidates: readonly string[],
 ): string | null {
   const raw = String(input ?? "").trim();
   if (!raw) return null;
@@ -14,7 +14,7 @@ export function resolveIdLikeGitHash(
 
   // 2) Exact match ignoring hyphens (UUID convenience)
   const exactCompact = candidates.find(
-    (c) => c.toLowerCase().replace(/-/g, "") === qCompact
+    (c) => c.toLowerCase().replace(/-/g, "") === qCompact,
   );
   if (exactCompact) return exactCompact;
 
@@ -24,7 +24,7 @@ export function resolveIdLikeGitHash(
 
   // 4) Prefix match ignoring hyphens
   const prefixCompact = candidates.find((c) =>
-    c.toLowerCase().replace(/-/g, "").startsWith(qCompact)
+    c.toLowerCase().replace(/-/g, "").startsWith(qCompact),
   );
   if (prefixCompact) return prefixCompact;
 
@@ -34,7 +34,7 @@ export function resolveIdLikeGitHash(
 
   // 6) Substring match ignoring hyphens
   const containsCompact = candidates.find((c) =>
-    c.toLowerCase().replace(/-/g, "").includes(qCompact)
+    c.toLowerCase().replace(/-/g, "").includes(qCompact),
   );
   if (containsCompact) return containsCompact;
 

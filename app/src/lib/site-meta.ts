@@ -22,7 +22,7 @@ export function formatPageTitle(pageTitle?: string) {
 }
 
 export function getDefaultMetadata(
-  overrides?: PageMetadata
+  overrides?: PageMetadata,
 ): Required<PageMetadata> {
   return {
     title: overrides?.title ? formatPageTitle(overrides.title) : SITE_NAME,
@@ -32,6 +32,3 @@ export function getDefaultMetadata(
     type: overrides?.type ?? "website",
   };
 }
-
-
-

@@ -12,21 +12,21 @@ function getModel() {
 function requireApiKey() {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error(
-      "Missing OPENAI_API_KEY. Set it in your environment to enable AI suggestions."
+      "Missing OPENAI_API_KEY. Set it in your environment to enable AI suggestions.",
     );
   }
 }
 
 export async function generateQuestions(
   prompt: string,
-  history: string = ""
+  history: string = "",
 ): Promise<Question[]> {
   requireApiKey();
 
   const questionTypeSchema = z
     .enum(["goal_discovery", "user_goals", "output_related"])
     .describe(
-      "goal_discovery = questions that probe for the user's ultimate objective or underlying goal - what they're really trying to achieve at the highest level. user_goals = questions about specific goals, constraints, and preferences related to their prompt. output_related = questions about the desired format, shape, and structure of the final response."
+      "goal_discovery = questions that probe for the user's ultimate objective or underlying goal - what they're really trying to achieve at the highest level. user_goals = questions about specific goals, constraints, and preferences related to their prompt. output_related = questions about the desired format, shape, and structure of the final response.",
     );
 
   const schema = z.object({
@@ -41,11 +41,11 @@ export async function generateQuestions(
               z.object({
                 id: z.string(),
                 text: z.string(),
-              })
+              }),
             )
             .min(3)
             .max(8),
-        })
+        }),
       )
       .min(8)
       .max(12),
@@ -122,7 +122,7 @@ export async function generateQuestions(
 
 export async function generateResult(
   prompt: string,
-  history: string
+  history: string,
 ): Promise<string> {
   requireApiKey();
 
@@ -154,7 +154,7 @@ export async function generateResult(
 }
 
 export async function generateTitleAndDescription(
-  prompt: string
+  prompt: string,
 ): Promise<{ title: string; description: string }> {
   requireApiKey();
 
@@ -162,12 +162,12 @@ export async function generateTitleAndDescription(
     title: z
       .string()
       .describe(
-        "A concise title for this consultation session (maximum 5 words)"
+        "A concise title for this consultation session (maximum 5 words)",
       ),
     description: z
       .string()
       .describe(
-        "A brief description of what the user wants to achieve (maximum 40 words)"
+        "A brief description of what the user wants to achieve (maximum 40 words)",
       ),
   });
 
@@ -191,7 +191,7 @@ export async function generateTitleAndDescription(
 export async function generateFocusedPrompt(
   prompt: string,
   history: string,
-  focus: string
+  focus: string,
 ): Promise<string> {
   requireApiKey();
 
