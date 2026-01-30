@@ -140,6 +140,9 @@ export const markdownComponents = {
     const [local, rest] = splitProps(preProps, ["node", "children", "class"]);
     const [isCollapsed, setIsCollapsed] = createSignal(true);
     const [needsCollapse, setNeedsCollapse] = createSignal(false);
+    const [lineCountLabel, setLineCountLabel] = createSignal<string | null>(
+      null
+    );
     let preRef: HTMLPreElement | undefined;
 
     onMount(() => {
@@ -148,6 +151,14 @@ export const markdownComponents = {
       const contentHeight = preRef.scrollHeight;
       if (contentHeight > CODE_BLOCK_COLLAPSED_HEIGHT) {
         setNeedsCollapse(true);
+      }
+      const rawText = preRef.textContent ?? "";
+      const text = rawText.replace(/\r?\n$/, "");
+      const count = text ? text.split(/\r?\n/).length : 0;
+      if (count === 1) {
+        setLineCountLabel("1 line");
+      } else if (count > 1) {
+        setLineCountLabel(`${count} lines`);
       }
     });
 
@@ -176,7 +187,11 @@ export const markdownComponents = {
             class={styles.expandButton}
             onClick={handleToggle}
           >
-            {isCollapsed() ? "Show more" : "Show less"}
+            {isCollapsed()
+              ? lineCountLabel()
+                ? `Show more • ${lineCountLabel()}`
+                : "Show more"
+              : "Show less"}
           </button>
         </Show>
       </div>
