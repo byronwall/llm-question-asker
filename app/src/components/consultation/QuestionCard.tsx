@@ -41,7 +41,7 @@ export function QuestionCard(props: QuestionCardProps) {
   };
 
   const showDeleteButton = () => {
-    return !props.hasResult && !props.disabled && !isAnswered();
+    return !props.hasResult && !props.disabled;
   };
 
   const handleCustomInputChange = (value: string) => {
