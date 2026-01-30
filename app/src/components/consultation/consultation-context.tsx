@@ -40,6 +40,7 @@ export type ConsultationController = {
   pendingJobId: Accessor<string | null>;
   sessionData: Accessor<Session | null | undefined>;
   currentRound: Accessor<Round | null>;
+  answersRoundId: Accessor<string | null>;
   isRoundComplete: Accessor<boolean>;
   handleCreateSession: () => Promise<void>;
   handleCreateDummySession: () => Promise<void>;
@@ -92,6 +93,8 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
   >(null);
   const [lastSessionJobIds, setLastSessionJobIds] = createSignal<string[]>([]);
   const [lastRoundId, setLastRoundId] = createSignal<string | null>(null);
+  const [answersRoundId, setAnswersRoundId] = createSignal<string | null>(null);
+  const [lastSessionId, setLastSessionId] = createSignal<string | null>(null);
   const [focusDialogState, setFocusDialogState] = createStore<FocusDialogState>(
     {
       isOpen: false,
@@ -294,6 +297,16 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
       optionId
     );
 
+    const round = currentRound();
+    if (round && answersRoundId() !== round.id) {
+      console.log("ConsultationProvider:answersRoundSync", {
+        reason: "toggleOption",
+        roundId: round.id,
+        previousAnswersRoundId: answersRoundId(),
+      });
+      setAnswersRoundId(round.id);
+    }
+
     const existing = answers.find((a) => a.questionId === questionId);
     let nextAnswers: Answer[];
     if (!existing) {
@@ -320,6 +333,16 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
 
   const handleCustomInput = (questionId: string, value: string) => {
     console.log("ConsultationProvider:handleCustomInput", questionId, value);
+
+    const round = currentRound();
+    if (round && answersRoundId() !== round.id) {
+      console.log("ConsultationProvider:answersRoundSync", {
+        reason: "customInput",
+        roundId: round.id,
+        previousAnswersRoundId: answersRoundId(),
+      });
+      setAnswersRoundId(round.id);
+    }
 
     const existing = answers.find((a) => a.questionId === questionId);
     if (!existing) {
@@ -505,6 +528,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     handleCreateSession,
     handleCreateDummySession,
     handleCreateSessionFromPrompt,
+    answersRoundId,
     handleToggleOption,
     handleCustomInput,
     handleSubmitRound,
@@ -574,6 +598,21 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
   });
 
   createEffect(() => {
+    const sessionId = props.sessionId ?? null;
+    if (sessionId === lastSessionId()) return;
+    console.log("ConsultationProvider:sessionIdChanged", {
+      previousSessionId: lastSessionId(),
+      nextSessionId: sessionId,
+    });
+    batch(() => {
+      setLastSessionId(sessionId);
+      setLastRoundId(null);
+      setAnswersRoundId(null);
+      setAnswers([]);
+    });
+  });
+
+  createEffect(() => {
     const round = currentRound();
     if (!round) return;
     if (round.id === lastRoundId()) return;
@@ -583,6 +622,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     });
     batch(() => {
       setLastRoundId(round.id);
+      setAnswersRoundId(round.id);
       setAnswers(filterAnswersForRound(round, [...round.answers]));
     });
   });

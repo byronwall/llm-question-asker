@@ -91,6 +91,109 @@ function formatSessionHistory(session: Session) {
   return segments.join("\n\n");
 }
 
+type NormalizedSession = {
+  rounds: Session["rounds"];
+  changed: boolean;
+  duplicateQuestionIds: string[];
+  droppedAnswers: number;
+  clearedCustomInputs: number;
+};
+
+function normalizeSessionQuestions(session: Session): NormalizedSession {
+  const counts = new Map<string, number>();
+  session.rounds.forEach((round) => {
+    round.questions.forEach((question) => {
+      counts.set(question.id, (counts.get(question.id) ?? 0) + 1);
+    });
+  });
+
+  const duplicateQuestionIds = [...counts.entries()]
+    .filter((entry) => entry[1] > 1)
+    .map((entry) => entry[0]);
+
+  if (duplicateQuestionIds.length === 0) {
+    return {
+      rounds: session.rounds,
+      changed: false,
+      duplicateQuestionIds,
+      droppedAnswers: 0,
+      clearedCustomInputs: 0,
+    };
+  }
+
+  let droppedAnswers = 0;
+  let clearedCustomInputs = 0;
+
+  const rounds = session.rounds.map((round) => {
+    const questionIdMap = new Map<string, string>();
+    const questionOptionIds = new Map<string, Set<string>>();
+
+    const questions = round.questions.map((question) => {
+      const nextId = `${round.id}:${question.id}`;
+      questionIdMap.set(question.id, nextId);
+      questionOptionIds.set(
+        question.id,
+        new Set(question.options.map((option) => option.id)),
+      );
+      return {
+        ...question,
+        id: nextId,
+      };
+    });
+
+    const answers = round.answers
+      .map((answer) => {
+        if (answer.questionId === ADDITIONAL_COMMENTS_QUESTION_ID) {
+          return answer;
+        }
+        const mappedQuestionId = questionIdMap.get(answer.questionId);
+        const optionSet = questionOptionIds.get(answer.questionId);
+        if (!mappedQuestionId || !optionSet) {
+          droppedAnswers += 1;
+          return null;
+        }
+
+        const validSelections = answer.selectedOptionIds.filter((id) =>
+          optionSet.has(id),
+        );
+        const hadInvalidSelections =
+          validSelections.length !== answer.selectedOptionIds.length;
+        const trimmedCustom = answer.customInput?.trim() ?? "";
+        const shouldClearCustom = hadInvalidSelections && trimmedCustom.length > 0;
+        if (shouldClearCustom) {
+          clearedCustomInputs += 1;
+        }
+
+        if (validSelections.length === 0 && trimmedCustom.length === 0) {
+          droppedAnswers += 1;
+          return null;
+        }
+
+        return {
+          ...answer,
+          questionId: mappedQuestionId,
+          selectedOptionIds: validSelections,
+          customInput: shouldClearCustom ? null : answer.customInput,
+        };
+      })
+      .filter((answer): answer is Answer => !!answer);
+
+    return {
+      ...round,
+      questions,
+      answers,
+    };
+  });
+
+  return {
+    rounds,
+    changed: true,
+    duplicateQuestionIds,
+    droppedAnswers,
+    clearedCustomInputs,
+  };
+}
+
 export const createSession = action(async (prompt: string) => {
   "use server";
   console.log("actions:createSession", { promptLength: prompt.length });
@@ -518,7 +621,19 @@ export const getSession = query(async (sessionId: string) => {
   console.log("actions:getSession", { sessionId });
   const database = db();
   const result = await database.getSession(sessionId);
-  return result;
+  if (!result) return result;
+
+  const normalized = normalizeSessionQuestions(result);
+  if (!normalized.changed) return result;
+
+  console.log("actions:getSession:normalized", {
+    sessionId,
+    duplicateQuestionIds: normalized.duplicateQuestionIds,
+    droppedAnswers: normalized.droppedAnswers,
+    clearedCustomInputs: normalized.clearedCustomInputs,
+  });
+  await database.updateSession(sessionId, { rounds: normalized.rounds });
+  return { ...result, rounds: normalized.rounds };
 }, "session:get");
 
 export const deleteQuestion = action(

@@ -15,6 +15,19 @@ export function useRoundAnswers(): RoundAnswersState {
   const ctx = useConsultation();
   const content = useRoundContent();
 
+  const localAnswersEnabled = () => {
+    const roundId = content.round().id;
+    const isMatch = ctx.answersRoundId() === roundId;
+    if (!isMatch && ctx.answers.length > 0) {
+      console.log("useRoundAnswers:localAnswersMismatch", {
+        roundId,
+        answersRoundId: ctx.answersRoundId(),
+        localAnswerCount: ctx.answers.length,
+      });
+    }
+    return isMatch;
+  };
+
   const filterAnswersForRound = (list: Answer[]) => {
     const allowed = new Set<string>([
       ...content.round().questions.map((question) => question.id),
@@ -25,7 +38,9 @@ export function useRoundAnswers(): RoundAnswersState {
 
   const getAnswer = (questionId: string) => {
     const roundAnswers = filterAnswersForRound(content.round().answers ?? []);
-    const localAnswers = filterAnswersForRound(ctx.answers ?? []);
+    const localAnswers = localAnswersEnabled()
+      ? filterAnswersForRound(ctx.answers ?? [])
+      : [];
 
     if (content.isLastRound()) {
       const local = localAnswers.find((answer) => answer.questionId === questionId);
