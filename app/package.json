@@ -6,7 +6,8 @@
     "dev": "pnpm prepare && vinxi dev",
     "build": "vinxi build",
     "start": "vinxi start",
-    "type-check": "tsc --noEmit && echo 'Type check passed!'"
+    "type-check": "tsc --noEmit && echo 'Type check passed!'",
+    "format": "pnpm dlx prettier --write src/**/*.{ts,tsx,js,jsx,json,md}"
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.0.0",
