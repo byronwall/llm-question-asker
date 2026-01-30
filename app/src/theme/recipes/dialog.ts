@@ -49,6 +49,21 @@ export const dialog = defineSlotRecipe({
       pos: 'absolute',
       top: '3',
       insetEnd: '3',
+      alignItems: 'center',
+      borderRadius: 'md',
+      color: 'fg.muted',
+      cursor: 'pointer',
+      display: 'inline-flex',
+      justifyContent: 'center',
+      p: '2',
+      transition: 'colors',
+      _hover: {
+        bg: 'bg.muted',
+        color: 'fg.default',
+      },
+      _active: {
+        bg: 'bg.subtle',
+      },
     },
     content: {
       '--dialog-z-index': 'zIndex.modal',

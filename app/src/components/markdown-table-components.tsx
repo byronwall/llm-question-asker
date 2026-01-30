@@ -1,20 +1,29 @@
 import type { SolidMarkdownComponents } from "solid-markdown";
 import { css } from "styled-system/css";
 
+const styles = {
+  tableWrapper: css({
+    width: "full",
+    overflowX: "auto",
+    WebkitOverflowScrolling: "touch",
+    mb: 4,
+  }),
+  table: css({
+    width: "max-content",
+    minWidth: "full",
+    borderCollapse: "collapse",
+    borderWidth: "1px",
+    borderColor: "border.default",
+    borderRadius: "md",
+    overflow: "hidden",
+  }),
+};
+
 export const markdownTableComponents = {
   table: (tableProps) => (
-    <table
-      class={css({
-        width: "full",
-        borderCollapse: "collapse",
-        borderWidth: "1px",
-        borderColor: "border.default",
-        borderRadius: "md",
-        overflow: "hidden",
-        mb: 4,
-      })}
-      {...tableProps}
-    />
+    <div class={styles.tableWrapper}>
+      <table class={styles.table} {...tableProps} />
+    </div>
   ),
   hr: (hrProps) => (
     <hr
