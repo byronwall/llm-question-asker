@@ -14,7 +14,7 @@ import { revalidate } from "@solidjs/router";
 
 import type { Job } from "~/lib/job-types";
 import { isActiveStage, STALL_THRESHOLD_MS } from "~/lib/job-types";
-import { getActiveJobs, cancelJob } from "~/server/job-actions";
+import { getActiveJobs, getJob, cancelJob } from "~/server/job-actions";
 import { toaster } from "~/components/ui/toast";
 import { createJobSocketClient } from "~/lib/job-socket-client";
 import type { JobSocketServerMessage } from "~/lib/job-socket-messages";
@@ -124,12 +124,20 @@ export function JobProvider(props: ParentProps) {
       for (const prevJob of prevJobs) {
         const stillActive = activeJobsList.find((j) => j.id === prevJob.id);
         if (!stillActive && watchedJobIds().has(prevJob.id)) {
-          console.log("JobProvider:jobNoLongerActive", { jobId: prevJob.id });
-          setWatchedJobIds((prev) => {
-            const next = new Set(prev);
-            next.delete(prevJob.id);
-            return next;
-          });
+          const terminalJob = await getJob(prevJob.id);
+          if (terminalJob) {
+            handleJobUpdate(terminalJob);
+          }
+        }
+      }
+
+      const activeJobIdsSet = new Set(activeJobsList.map((job) => job.id));
+      const watchedIds = [...watchedJobIds()];
+      for (const watchedId of watchedIds) {
+        if (activeJobIdsSet.has(watchedId)) continue;
+        const watchedJob = await getJob(watchedId);
+        if (watchedJob) {
+          handleJobUpdate(watchedJob);
         }
       }
     } catch (err) {

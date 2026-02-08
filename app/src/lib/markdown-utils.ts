@@ -1,18 +1,21 @@
-import type { Element, Text } from "hast";
-
 type UnknownRecord = Record<string, unknown>;
+type MarkdownTextNode = { type: "text"; value: string };
+type MarkdownElementNode = {
+  tagName: string;
+  children: unknown[];
+};
 
 function isRecord(value: unknown): value is UnknownRecord {
   return typeof value === "object" && value !== null;
 }
 
-function isHastText(node: unknown): node is Text {
+function isMarkdownTextNode(node: unknown): node is MarkdownTextNode {
   return (
     isRecord(node) && node.type === "text" && typeof node.value === "string"
   );
 }
 
-function isHastElement(node: unknown): node is Element {
+function isMarkdownElementNode(node: unknown): node is MarkdownElementNode {
   return (
     isRecord(node) &&
     typeof node.tagName === "string" &&
@@ -21,10 +24,10 @@ function isHastElement(node: unknown): node is Element {
 }
 
 function extractTextFromNode(node: unknown): string {
-  if (isHastText(node)) {
+  if (isMarkdownTextNode(node)) {
     return node.value;
   }
-  if (isHastElement(node)) {
+  if (isMarkdownElementNode(node)) {
     return node.children.map(extractTextFromNode).join("");
   }
   return "";
@@ -59,6 +62,14 @@ export function parseLanguage(...values: Array<unknown>): string {
   if (typeof className !== "string") {
     return "text";
   }
-  const match = /language-([\w-]+)/.exec(className);
+  const match = /(?:language|lang)-([\w-]+)/.exec(className);
   return match?.[1] ?? "text";
+}
+
+export function toHeadingId(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-");
 }

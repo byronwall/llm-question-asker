@@ -14,6 +14,7 @@ import {
 } from "./ai";
 import { db } from "./db";
 import { jobsDb } from "./jobs-db";
+import { normalizeOpenAiErrorMessage } from "~/lib/error-utils";
 
 export type CreateSessionResult = { jobId: string; sessionId: string };
 export type SubmitAnswersResult = { jobId: string };
@@ -253,6 +254,10 @@ async function processCreateSession(jobId: string, sessionId: string) {
       const meta = await generateTitleAndDescription(session.prompt);
       title = meta.title;
       description = meta.description;
+      await database.updateSession(session.id, {
+        title,
+        description,
+      });
     } catch (err) {
       console.error("processCreateSession:analyze failed", err);
     }
@@ -283,7 +288,7 @@ async function processCreateSession(jobId: string, sessionId: string) {
     await jobs.completeJob(jobId, session.id);
   } catch (err) {
     console.error("processCreateSession:failed", { jobId, error: err });
-    await jobs.failJob(jobId, String(err));
+    await jobs.failJob(jobId, normalizeOpenAiErrorMessage(err));
   }
 }
 
@@ -356,7 +361,7 @@ async function processSubmitAnswers(
     await jobs.completeJob(jobId, sessionId);
   } catch (err) {
     console.error("processSubmitAnswers:failed", { jobId, error: err });
-    await jobs.failJob(jobId, String(err));
+    await jobs.failJob(jobId, normalizeOpenAiErrorMessage(err));
   }
 }
 
@@ -371,29 +376,11 @@ export const createNextRound = action(
     const jobs = jobsDb();
     const job = await jobs.createJob("create_next_round", input.sessionId);
 
-    const database = db();
-    const session = await database.getSession(input.sessionId);
-    if (!session) throw new Error("Session not found");
-    const roundId = crypto.randomUUID();
-    const round = {
-      id: roundId,
-      questions: [],
-      answers: [],
-      result: null,
-      createdAt: new Date().toISOString(),
-    };
-    await database.updateSession(input.sessionId, {
-      rounds: [...session.rounds, round],
-    });
-
-    processCreateNextRound(
-      job.id,
-      input.sessionId,
-      roundId,
-      input.guidance,
-    ).catch((err) => {
+    processCreateNextRound(job.id, input.sessionId, input.guidance).catch(
+      (err) => {
       console.error("actions:createNextRound:background error", err);
-    });
+      },
+    );
 
     return { jobId: job.id } as CreateNextRoundResult;
   },
@@ -403,7 +390,6 @@ export const createNextRound = action(
 async function processCreateNextRound(
   jobId: string,
   sessionId: string,
-  roundId: string,
   guidance?: string,
 ) {
   const jobs = jobsDb();
@@ -419,7 +405,6 @@ async function processCreateNextRound(
     await jobs.updateJobStage(jobId, "analyze");
     let history = "";
     for (const r of session.rounds) {
-      if (r.id === roundId) continue;
       const qaPairs = formatRoundQaPairs(r.questions, r.answers, "(Skipped)");
       const additionalComments = formatAdditionalCommentsAnswer(r.answers);
       if (additionalComments) {
@@ -442,31 +427,20 @@ async function processCreateNextRound(
     console.log("processCreateNextRound:finalize", { jobId });
     await jobs.updateJobStage(jobId, "finalize");
     const rounds = [...session.rounds];
-    let roundIndex = rounds.findIndex((round) => round.id === roundId);
-    if (roundIndex < 0) {
-      console.log("processCreateNextRound:missingRound", { jobId, roundId });
-      rounds.push({
-        id: roundId,
-        questions: [],
-        answers: [],
-        result: null,
-        createdAt: new Date().toISOString(),
-      });
-      roundIndex = rounds.length - 1;
-    }
-    rounds[roundIndex] = {
-      ...rounds[roundIndex],
+    rounds.push({
+      id: crypto.randomUUID(),
       questions,
       answers: [],
       result: null,
-    };
+      createdAt: new Date().toISOString(),
+    });
     await database.updateSession(sessionId, { rounds });
 
     console.log("processCreateNextRound:completed", { jobId });
     await jobs.completeJob(jobId, sessionId);
   } catch (err) {
     console.error("processCreateNextRound:failed", { jobId, error: err });
-    await jobs.failJob(jobId, String(err));
+    await jobs.failJob(jobId, normalizeOpenAiErrorMessage(err));
   }
 }
 
@@ -612,7 +586,7 @@ async function processAddMoreQuestions(
     await jobs.completeJob(jobId, sessionId);
   } catch (err) {
     console.error("processAddMoreQuestions:failed", { jobId, error: err });
-    await jobs.failJob(jobId, String(err));
+    await jobs.failJob(jobId, normalizeOpenAiErrorMessage(err));
   }
 }
 

@@ -25,6 +25,7 @@
 
 ## UI Improvement
 
+- Standardize markdown code blocks with line numbers, copy button, and consistent overflow behavior
 - Tables are quite poor on mobile - might switch over to a simple card based displayed (even in Markdown)
 - Need a strongr separation between the analysis + rec and the next steps + inputs below it. A horizontal rule or a border would help. Or some gap that matches the background color.
 

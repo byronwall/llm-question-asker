@@ -1,0 +1,3 @@
+display_name: "Solid Hydration Debug"
+short_description: "Isolate and fix Solid SSR hydration mismatches quickly."
+default_prompt: "Use a coarse-to-fine comment-out isolation workflow to find this Solid hydration mismatch, then re-enable features incrementally with post-mount targeted fixes."

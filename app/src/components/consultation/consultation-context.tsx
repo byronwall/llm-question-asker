@@ -29,6 +29,7 @@ import { createDummySession } from "~/server/actions-dev-only";
 import { toaster } from "~/components/ui/toast";
 import { useJobs } from "~/components/jobs/job-context";
 import { isDev } from "~/lib/env";
+import { normalizeOpenAiErrorMessage } from "~/lib/error-utils";
 
 export type ConsultationController = {
   prompt: Accessor<string>;
@@ -92,6 +93,10 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     ((job: Job) => void) | null
   >(null);
   const [lastSessionJobIds, setLastSessionJobIds] = createSignal<string[]>([]);
+  const [lastPendingStageKey, setLastPendingStageKey] = createSignal("");
+  const [latestSessionData, setLatestSessionData] = createSignal<Session | null>(
+    null,
+  );
   const [lastRoundId, setLastRoundId] = createSignal<string | null>(null);
   const [answersRoundId, setAnswersRoundId] = createSignal<string | null>(null);
   const [lastSessionId, setLastSessionId] = createSignal<string | null>(null);
@@ -146,15 +151,22 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
   const runAddMoreQuestions = useAction(addMoreQuestions);
   const runDeleteQuestion = useAction(deleteQuestion);
   const runSaveAnswers = useAction(saveAnswers);
+  createEffect(() => {
+    const nextValue = sessionData();
+    if (nextValue) {
+      setLatestSessionData(nextValue);
+    }
+  });
+
+  const resolvedSessionData = () => sessionData() ?? latestSessionData();
 
   const sessionActiveJobs = createMemo(() => {
     if (!props.sessionId) return [];
     return jobsCtx.jobs().filter((job) => job.sessionId === props.sessionId);
   });
-  const hasSessionActiveJobs = () => sessionActiveJobs().length > 0;
 
   const currentRound = () => {
-    const session = sessionData();
+    const session = resolvedSessionData();
     if (!session || !session.rounds.length) return null;
     return session.rounds[session.rounds.length - 1];
   };
@@ -187,7 +199,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
   };
 
   const handlePersistAnswers = async (nextAnswers?: Answer[]) => {
-    const session = sessionData();
+    const session = resolvedSessionData();
     if (!session) return;
     const round = currentRound();
     if (!round) return;
@@ -264,7 +276,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
       setPendingJobHandler(null);
       toaster.create({
         title: "Failed to start",
-        description: String(error),
+        description: normalizeOpenAiErrorMessage(error),
         type: "error",
         duration: 5000,
       });
@@ -361,7 +373,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
 
   const handleSubmitRound = async () => {
     console.log("ConsultationProvider:handleSubmitRound");
-    const session = sessionData();
+    const session = resolvedSessionData();
     if (!session) return;
     const round = currentRound();
     if (!round) return;
@@ -396,7 +408,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
       setPendingJobHandler(null);
       toaster.create({
         title: "Failed to generate result",
-        description: String(error),
+        description: normalizeOpenAiErrorMessage(error),
         type: "error",
         duration: 5000,
       });
@@ -409,7 +421,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
       hasGuidance: guidance.length > 0,
       guidanceLength: guidance.length,
     });
-    const session = sessionData();
+    const session = resolvedSessionData();
     if (!session) return;
 
     setIsSubmitting(true);
@@ -442,7 +454,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
       setPendingJobHandler(null);
       toaster.create({
         title: "Failed to create next round",
-        description: String(error),
+        description: normalizeOpenAiErrorMessage(error),
         type: "error",
         duration: 5000,
       });
@@ -451,7 +463,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
 
   const handleAddMoreQuestions = async () => {
     console.log("ConsultationProvider:handleAddMoreQuestions");
-    const session = sessionData();
+    const session = resolvedSessionData();
     if (!session) return;
     const round = currentRound();
     if (!round) return;
@@ -484,7 +496,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
       setPendingJobHandler(null);
       toaster.create({
         title: "Failed to add questions",
-        description: String(error),
+        description: normalizeOpenAiErrorMessage(error),
         type: "error",
         duration: 5000,
       });
@@ -493,7 +505,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
 
   const handleDeleteQuestion = async (questionId: string) => {
     console.log("ConsultationProvider:handleDeleteQuestion", questionId);
-    const session = sessionData();
+    const session = resolvedSessionData();
     if (!session) return;
 
     setIsSubmitting(true);
@@ -547,11 +559,16 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
     if (!jobId) return;
     const job = jobsCtx.getJobById(jobId);
     if (!job) return;
-
-    console.log("ConsultationProvider:jobUpdate", {
-      jobId,
-      stage: job.stage,
-    });
+    const stageKey = `${jobId}:${job.stage}`;
+    if (stageKey !== lastPendingStageKey()) {
+      setLastPendingStageKey(stageKey);
+      if (
+        job.type === "create_session" &&
+        (job.stage === "analyze" || job.stage === "finalize")
+      ) {
+        revalidate(getSession.key);
+      }
+    }
 
     if (job.stage === "completed") {
       console.log("ConsultationProvider:jobCompleted", {
@@ -562,6 +579,7 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
       setIsSubmitting(false);
       setPendingJobId(null);
       setPendingJobHandler(null);
+      resetFocusDialogState();
       handler?.(job);
       return;
     }
@@ -574,27 +592,17 @@ export function ConsultationProvider(props: ConsultationProviderProps) {
       toaster.dismiss();
       toaster.create({
         title: "Operation failed",
-        description: job.error ?? "An error occurred",
+        description: normalizeOpenAiErrorMessage(
+          job.error ?? "An error occurred",
+        ),
         type: "error",
         duration: 5000,
       });
       setIsSubmitting(false);
       setPendingJobId(null);
       setPendingJobHandler(null);
+      resetFocusDialogState();
     }
-  });
-
-  createEffect(() => {
-    const hasActive = hasSessionActiveJobs();
-    console.log("ConsultationProvider:sessionJobs:check", {
-      sessionId: props.sessionId,
-      activeCount: sessionActiveJobs().length,
-    });
-    if (!hasActive) return;
-    console.log("ConsultationProvider:sessionJobs:revalidate", {
-      sessionId: props.sessionId,
-    });
-    revalidate(getSession.key);
   });
 
   createEffect(() => {

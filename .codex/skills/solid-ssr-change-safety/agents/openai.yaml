@@ -1,0 +1,3 @@
+display_name: "Solid SSR Change Safety"
+short_description: "Guardrails to avoid hydration mismatches in Solid UI edits."
+default_prompt: "Review or implement this Solid frontend change with strict SSR hydration safety. Keep server and initial client DOM structure identical, then apply enhancements post-mount."

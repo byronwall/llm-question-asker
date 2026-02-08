@@ -13,17 +13,9 @@ type JobListener = (job: Job) => void;
 const listeners = new Set<JobListener>();
 
 const notifyJobUpdate = (job: Job) => {
-  console.log("jobs-db:notifyJobUpdate", {
-    jobId: job.id,
-    listeners: listeners.size,
-  });
   if (listeners.size === 0) return;
   for (const listener of listeners) {
     try {
-      console.log("jobs-db:notifyJobUpdate:listener", {
-        jobId: job.id,
-        listenerId: listener.name,
-      });
       listener(job);
     } catch (err) {
       console.error("jobs-db:listener:error", err);
@@ -206,10 +198,8 @@ class JobsDb {
 
   onJobUpdate(listener: JobListener) {
     listeners.add(listener);
-    console.log("jobs-db:listener:add", { listeners: listeners.size });
     return () => {
       listeners.delete(listener);
-      console.log("jobs-db:listener:remove", { listeners: listeners.size });
     };
   }
 }

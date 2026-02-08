@@ -523,13 +523,10 @@ Use these exact tags so they’re searchable:
 - Run `pnpm type-check` to verify TypeScript types without building.
   - This runs `tsc --noEmit` and checks for type errors faster than a full build.
   - Recommended as a quick verification step during development.
-- Run `pnpm build` to verify the build passes after making changes.
-  - This project uses Vinxi (SolidStart) for building. The build compiles:
-    - SSR bundle
-    - Client bundle
-    - Server functions bundle
-  - The build will catch TypeScript errors and bundling issues.
-- There are no unit tests currently; verification is done via successful type check, build, and manual testing.
+- Do not run `pnpm build` for routine verification in this repo.
+  - Build is intentionally skipped because it is slow and low-signal for normal iteration.
+  - Rely on `pnpm type-check` as the verification command.
+- There are no unit tests currently; verification is done via successful type check and manual testing.
 
 ---
 

@@ -4,6 +4,8 @@ import {
   Show,
   Suspense,
   Switch,
+  onCleanup,
+  onMount,
   createEffect,
   createSignal,
 } from "solid-js";
@@ -15,6 +17,7 @@ import * as Tabs from "~/components/ui/tabs";
 import { Text } from "~/components/ui/text";
 import { PageMeta } from "~/components/PageMeta";
 import { SITE_URL, SITE_NAME } from "~/lib/site-meta";
+import type { Session } from "~/lib/domain";
 import {
   exportSessionAsMarkdown,
   downloadMarkdown,
@@ -33,13 +36,25 @@ export function SessionView() {
   const navigate = useNavigate();
   const jobsCtx = useJobs();
   const [activeTab, setActiveTab] = createSignal("");
+  const [latestSessionData, setLatestSessionData] = createSignal<Session | null>(
+    null,
+  );
   let tabsRootRef: HTMLDivElement | undefined;
   let lastRoundCount = 0;
   let lastRoundsKey = "";
 
+  createEffect(() => {
+    const nextValue = ctx.sessionData();
+    if (nextValue) {
+      setLatestSessionData(nextValue);
+    }
+  });
+
+  const session = () => ctx.sessionData() ?? latestSessionData();
+
   const sessionSummary = () => {
-    const session = ctx.sessionData();
-    if (!session) {
+    const current = session();
+    if (!current) {
       return {
         hasSession: false,
         sessionId: null,
@@ -49,10 +64,10 @@ export function SessionView() {
 
     return {
       hasSession: true,
-      sessionId: session.id,
-      roundCount: session.rounds.length,
-      hasTitle: !!session.title,
-      promptLength: session.prompt.length,
+      sessionId: current.id,
+      roundCount: current.rounds.length,
+      hasTitle: !!current.title,
+      promptLength: current.prompt.length,
     };
   };
 
@@ -94,31 +109,114 @@ export function SessionView() {
     downloadJson(payload, filename);
   };
 
+  const getTabValueFromLocation = (roundCount: number) => {
+    if (typeof window === "undefined") return null;
+    const params = new URLSearchParams(window.location.search);
+    const fromQuery = Number(params.get("round") ?? "");
+    if (
+      Number.isInteger(fromQuery) &&
+      fromQuery >= 1 &&
+      fromQuery <= roundCount
+    ) {
+      return `round-${fromQuery - 1}`;
+    }
+
+    const match = /^#round-(\d+)$/.exec(window.location.hash);
+    const oneBasedRound = Number(match?.[1] ?? "");
+    if (!Number.isInteger(oneBasedRound)) return null;
+    if (oneBasedRound < 1 || oneBasedRound > roundCount) return null;
+    return `round-${oneBasedRound - 1}`;
+  };
+
+  const updateRoundInUrl = (tabValue: string) => {
+    if (typeof window === "undefined") return;
+    const match = /^round-(\d+)$/.exec(tabValue);
+    const zeroBasedRound = Number(match?.[1] ?? "");
+    if (!Number.isInteger(zeroBasedRound)) return;
+    const nextRound = String(zeroBasedRound + 1);
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("round") === nextRound) return;
+    url.searchParams.set("round", nextRound);
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+  };
+
+  const scrollToHashTargetWithRetry = () => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash;
+    if (!hash || hash === "#" || hash.startsWith("#round-")) return;
+
+    const targetId = decodeURIComponent(hash.slice(1));
+    if (!targetId) return;
+
+    let attempts = 0;
+    const maxAttempts = 8;
+
+    const tryScroll = () => {
+      attempts += 1;
+      const target = document.getElementById(targetId);
+      if (target) {
+        target.scrollIntoView({ behavior: "auto", block: "start" });
+        return;
+      }
+      if (attempts < maxAttempts) {
+        window.setTimeout(tryScroll, 80);
+      }
+    };
+
+    window.setTimeout(tryScroll, 0);
+  };
+
   createEffect(() => {
-    const session = ctx.sessionData();
-    if (!session) return;
-    const roundCount = session.rounds.length;
+    const current = session();
+    if (!current) return;
+    const roundCount = current.rounds.length;
     if (roundCount === 0) return;
 
-    const roundsKey = `${session.id}:${session.rounds
+    const roundsKey = `${current.id}:${current.rounds
       .map((round) => round.id)
       .join("|")}`;
     if (roundsKey === lastRoundsKey) return;
 
-    const nextValue = `round-${roundCount - 1}`;
+    const nextValue =
+      (lastRoundsKey ? null : getTabValueFromLocation(roundCount)) ??
+      `round-${roundCount - 1}`;
     console.log("SessionView:roundsChanged", {
-      sessionId: session.id,
+      sessionId: current.id,
       roundCount,
       nextValue,
       previousRoundsKey: lastRoundsKey,
       roundsKey,
     });
     setActiveTab(nextValue);
+    updateRoundInUrl(nextValue);
     if (lastRoundsKey && roundCount > lastRoundCount) {
       tabsRootRef?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
     lastRoundCount = roundCount;
     lastRoundsKey = roundsKey;
+  });
+
+  createEffect(() => {
+    const current = session();
+    if (!current) return;
+    const tab = activeTab();
+    if (!tab) return;
+    scrollToHashTargetWithRetry();
+  });
+
+  onMount(() => {
+    if (typeof window === "undefined") return;
+    const handleHashChange = () => {
+      scrollToHashTargetWithRetry();
+    };
+    window.addEventListener("hashchange", handleHashChange);
+    onCleanup(() => {
+      window.removeEventListener("hashchange", handleHashChange);
+    });
   });
 
   const handleTabChange: NonNullable<Tabs.RootProps["onValueChange"]> = (
@@ -129,6 +227,7 @@ export function SessionView() {
       previousValue: activeTab(),
     });
     setActiveTab(details.value);
+    updateRoundInUrl(details.value);
   };
 
   return (
@@ -143,7 +242,7 @@ export function SessionView() {
       })()}
     >
       <Show
-        when={ctx.sessionData()}
+        when={session()}
         fallback={(() => {
           console.log("SessionView:Show:fallback - no session data");
           return <Text>Session not found.</Text>;
