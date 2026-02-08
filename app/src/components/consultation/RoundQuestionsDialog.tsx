@@ -23,7 +23,7 @@ export function RoundQuestionsDialog() {
       <Dialog.Positioner>
         <Dialog.Content
           class={css({
-            maxW: "880px",
+            maxW: "4xl",
             "--dialog-base-margin": "24px",
             maxH: "80vh",
             overflowY: "auto",
